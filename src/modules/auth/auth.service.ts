@@ -27,18 +27,18 @@ export async function register(input: RegisterInput) {
                 email: org.email,
                 passwordHash,
                 role: "ORGANIZER",
-                organizerProfile: {
+                organizer: {
                     create: {
                         orgName: org.orgName,
-                        description: org.description,
-                        contactEmail: org.contactEmail,
-                        contactPhone: org.contactPhone,
-                        website: org.website,
-                        logoUrl: org.logoUrl,
+                        description: org.description ?? null,
+                        contactEmail: org.contactEmail ?? null,
+                        contactPhone: org.contactPhone ?? null,
+                        website: org.website ?? null,
+                        logoUrl: org.logoUrl ?? null,
                     },
                 },
             },
-            include: { organizerProfile: true },
+            include: { organizer: true },
         });
 
         return sanitizeUser(user);
@@ -88,7 +88,7 @@ export async function login(input: LoginInput) {
 export async function me(userId: string) {
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { organizerProfile: true },
+        include: { organizer: true },
     });
 
     if (!user) {
@@ -128,13 +128,13 @@ function sanitizeUser<
     T extends {
         id: string;
         email: string;
-        fullName: string;
-        phone: string;
+        fullName?: string | null;
+        phone?: string | null;
         role: string;
         createdAt: Date;
         updatedAt: Date;
         passwordHash: string;
-        organizerProfile?: unknown;
+        organizer?: unknown;
     },
 >(user: T) {
     const { passwordHash: _ph, ...safe } = user;

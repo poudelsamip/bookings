@@ -20,33 +20,103 @@ enum UserRole {
 }
 
 model User {
-  id String @id @default(uuid())
-  email String @unique
-  passwordHash String @map("password_hash")
-  fullName String? @map("full_name")
-  phone String?
-  role UserRole @default(USER)
-  
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String?  @map("full_name")
+  phone        String?
+  role         UserRole @default(USER)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  organizerProfile OrganizerProfile?
+  organizer Organizer?
 
   @@map("users")
 }
 
-model OrganizerProfile {
+model Organizer {
   id String @id @default(uuid())
 
   userId String @unique @map("user_id")
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
-  orgName String @map("org_name")
-  description String?
+  orgName      String  @map("org_name")
+  description  String?
   contactEmail String? @map("contact_email")
   contactPhone String? @map("contact_phone")
-  website String?
-  logoUrl String? @map("logo_url")
+  website      String?
+  logoUrl      String? @map("logo_url")
 
-  @@map("organizer_profile")
+  events Event[]
+
+  @@map("organizer")
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+model Event {
+  id String @id @default(uuid())
+
+  organizerId String    @map("organizer_id")
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+
+  categoryId String        @map("category_id")
+  category   EventCategory @relation(fields: [categoryId], references: [id])
+
+  venue Venue?
+
+  title       String
+  description String
+  bannerUrl   String? @map("banner_url")
+
+  date      DateTime  @db.Date
+  startTime DateTime
+  endTime   DateTime?
+
+  status EventStatus @default(DRAFT)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizerId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([date])
+  @@map("event")
+}
+
+model EventCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+
+  events Event[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("event_category")
+}
+
+model Venue {
+  id String @id @default(uuid())
+
+  eventId String @unique
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name       String
+  address    String
+  district   String
+  googleMaps String? @map("google_maps")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("venue")
 }

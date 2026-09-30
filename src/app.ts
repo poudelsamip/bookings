@@ -2,6 +2,7 @@ import express, { type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import authRouter from "./modules/auth/auth.route.js";
+import eventRouter from "./modules/event/event.route.js";
 
 export function bootstrap() {
     const app = express();
@@ -27,6 +28,7 @@ export function bootstrap() {
     });
 
     app.use("/api/auth", authRouter);
+    app.use("/api/events", eventRouter);
 
     app.use(errorHandler);
 

@@ -9,7 +9,9 @@ export const validateZod = (schema: any) => {
                 params: req.params,
             });
 
-            req.body = validatedData.body;
+            if (validatedData.body) req.body = validatedData.body;
+            if (validatedData.query) req.query = validatedData.query;
+            if (validatedData.params) req.params = validatedData.params;
             next();
         } catch (error) {
             console.error(
