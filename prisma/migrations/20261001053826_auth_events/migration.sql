@@ -1,17 +1,22 @@
-/*
-  Warnings:
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'ORGANIZER', 'STAFF', 'USER');
 
-  - You are about to drop the `organizer_profile` table. If the table is not empty, all the data it contains will be lost.
-
-*/
 -- CreateEnum
 CREATE TYPE "EventStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'CANCELLED', 'COMPLETED');
 
--- DropForeignKey
-ALTER TABLE "organizer_profile" DROP CONSTRAINT "organizer_profile_user_id_fkey";
+-- CreateTable
+CREATE TABLE "users" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password_hash" TEXT NOT NULL,
+    "full_name" TEXT,
+    "phone" TEXT,
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
--- DropTable
-DROP TABLE "organizer_profile";
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "organizer" (
@@ -49,6 +54,7 @@ CREATE TABLE "event" (
 CREATE TABLE "event_category" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -71,6 +77,9 @@ CREATE TABLE "venue" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "organizer_user_id_key" ON "organizer"("user_id");
 
 -- CreateIndex
@@ -87,6 +96,9 @@ CREATE INDEX "event_date_idx" ON "event"("date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "event_category_name_key" ON "event_category"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "event_category_slug_key" ON "event_category"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "venue_eventId_key" ON "venue"("eventId");

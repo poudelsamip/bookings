@@ -17,14 +17,29 @@ import {
 
 const router = Router();
 
-router.get("/", validateZod(listEventsSchema), listEventsHandler);
+router.get("event/", validateZod(listEventsSchema), listEventsHandler);
 
-router.get("/:id", validateZod(deleteEventSchema), getEventByIdHandler);
+router.get("event/:id", validateZod(deleteEventSchema), getEventByIdHandler);
 
-router.post("/", authenticate, validateZod(createEventSchema), createEventHandler);
+router.post(
+    "event/",
+    authenticate,
+    validateZod(createEventSchema),
+    createEventHandler,
+);
 
-router.patch("/:id", authenticate, validateZod(updateEventSchema), updateEventHandler);
+router.patch(
+    "event/:id",
+    authenticate,
+    validateZod(updateEventSchema),
+    updateEventHandler,
+);
 
-router.delete("/:id", authenticate, validateZod(deleteEventSchema), deleteEventHandler);
+router.delete(
+    "event/:id",
+    authenticate,
+    validateZod(deleteEventSchema),
+    deleteEventHandler,
+);
 
 export default router;

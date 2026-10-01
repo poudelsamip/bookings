@@ -32,6 +32,8 @@ model User {
 
   organizer Organizer?
 
+  orders Order[]
+
   @@map("users")
 }
 
@@ -72,12 +74,19 @@ model Event {
   venue Venue?
 
   title       String
+  slug        String @unique
   description String
   bannerUrl   String? @map("banner_url")
 
   date      DateTime  @db.Date
   startTime DateTime
   endTime   DateTime?
+
+  seatingType SeatingType @map("seating_type")
+
+  ticketTypes TicketType[]
+  orders Order[]
+  tickets Ticket[]
 
   status EventStatus @default(DRAFT)
 
@@ -94,6 +103,7 @@ model Event {
 model EventCategory {
   id          String  @id @default(uuid())
   name        String  @unique
+  slug        String  @unique
   description String?
 
   events Event[]
@@ -119,4 +129,122 @@ model Venue {
   updatedAt DateTime @updatedAt
 
   @@map("venue")
+}
+
+enum SeatingType {
+  GENERAL
+  BLOCK
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  ESEWA
+  KHALTI
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum TicketStatus {
+  VALID
+  CANCELLED
+}
+
+model TicketType {
+  id String @id @default(uuid())
+  
+  eventId String @map("event_id")
+  event Event @relation(fields: [eventId], references: [id])
+
+  name String
+  price Int
+  total Int
+  held Int @default(0)
+  sold Int @default(0)
+
+  tickets Ticket[]
+  orderItems OrderItem[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+
+  @@map("ticket_type")
+}
+
+model Order {
+  id String @id @default(uuid())
+  
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id])
+
+  eventId String @map("event_id")
+  event Event @relation(fields: [eventId], references: [id])
+
+  total Int // in paisa
+  status OrderStatus
+
+  items OrderItem[]
+  tickets Ticket[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([eventId])
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+
+  orderId String @map("order_id")
+  order Order @relation(fields: [orderId], references: [id])
+
+  ticketTypeId String @map("ticket_type_id")
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+
+  quantity Int
+  unitPrice Int @map("unit_price")
+  
+  @@unique([orderId, ticketTypeId])
+  @@index([ticketTypeId])
+
+  @@map("order_items")
+}
+
+model Ticket {
+  id String @id @default(uuid())
+
+  orderId String @map("order_id")
+  order Order @relation(fields: [orderId], references: [id])
+
+  ticketTypeId String @map("ticket_type_id")
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+
+  eventId String @map("event_id")
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  qrCode String @unique @map("qr_code")
+  status TicketStatus @default(VALID)
+
+  checkedInAt DateTime? @map("checked_in_at")
+
+  seatId String? @map("seat_id")
+
+  @@index([orderId])
+  @@index([eventId])
+  @@index([ticketTypeId])
+
+  @@map("tickets")
 }

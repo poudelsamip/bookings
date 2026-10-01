@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import * as authService from "./auth.service.js";
 import type { LoginInput, RegisterInput } from "./auth.schema.js";
-import { AppError } from "../../utils/error.util.js";
+import { AppError } from "../../utils/error.js";
 
 const REFRESH_COOKIE = "refreshToken";
 

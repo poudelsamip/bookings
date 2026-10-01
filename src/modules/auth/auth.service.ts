@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma.lib.js";
 import { hashPassword, comparePassword } from "../../lib/password.lib.js";
 import { generateTokenPair, verifyRefreshToken } from "../../lib/jwt.lib.js";
-import { AppError } from "../../utils/error.util.js";
+import { AppError } from "../../utils/error.js";
 import type {
     RegisterInput,
     LoginInput,

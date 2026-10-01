@@ -28,7 +28,7 @@ export function bootstrap() {
     });
 
     app.use("/api/auth", authRouter);
-    app.use("/api/events", eventRouter);
+    app.use("/api", eventRouter);
 
     app.use(errorHandler);
 

@@ -1,17 +1,38 @@
 import { prisma } from "../../lib/prisma.lib.js";
-import { AppError } from "../../utils/error.util.js";
+import { AppError } from "../../utils/error.js";
+import { Prisma } from "../../../generated/prisma/client.js";
 import { EventStatus } from "../../../generated/prisma/enums.js";
+import { randomInt } from "node:crypto";
 import type {
     EventInput,
     ListEventsQuery,
     UpdateEventInput,
 } from "./event.schema.js";
+import { slugify } from "../../utils/slugify.js";
 
 const EVENT_INCLUDE = {
     venue: true,
-    category: { select: { id: true, name: true } },
+    category: { select: { id: true, name: true, slug: true } },
     organizer: { select: { id: true, orgName: true, logoUrl: true } },
+    ticketTypes: true,
 } as const;
+
+async function createUniqueEventSlug(title: string): Promise<string> {
+    const base = slugify(title, 74) || "event";
+    let slug = base;
+
+    // first try the clean slug, then add 5 random letters until it's free
+    while (
+        await prisma.event.findUnique({ where: { slug }, select: { id: true } })
+    ) {
+        const suffix = Array.from({ length: 5 }, () =>
+            String.fromCharCode(97 + randomInt(26)),
+        ).join("");
+        slug = `${base}-${suffix}`;
+    }
+
+    return slug;
+}
 
 export async function createEvent(userId: string, input: EventInput) {
     const organizer = await prisma.organizer.findUnique({
@@ -33,31 +54,56 @@ export async function createEvent(userId: string, input: EventInput) {
         throw new AppError(404, "Event category not found");
     }
 
-    const event = await prisma.event.create({
-        data: {
-            organizerId: organizer.id,
-            categoryId: input.categoryId,
-            title: input.title,
-            description: input.description,
-            bannerUrl: input.bannerUrl ?? null,
-            date: new Date(input.date),
-            startTime: new Date(input.startTime),
-            endTime: input.endTime ? new Date(input.endTime) : null,
-            ...(input.venue && {
-                venue: {
-                    create: {
-                        name: input.venue.name,
-                        address: input.venue.address,
-                        district: input.venue.district,
-                        googleMaps: input.venue.googleMaps ?? null,
-                    },
-                },
-            }),
-        },
-        include: EVENT_INCLUDE,
-    });
+    const ticketTypes = input.ticketTypes.map((t) => ({
+        name: t.name || "GENERAL",
+        price: t.price,
+        total: t.total,
+        sold: 0, // MARK SOLD 0
+    }));
 
-    return event;
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const slug = await createUniqueEventSlug(input.title);
+
+        try {
+            return await prisma.event.create({
+                data: {
+                    organizerId: organizer.id,
+                    categoryId: input.categoryId,
+                    title: input.title,
+                    slug,
+                    description: input.description,
+                    bannerUrl: input.bannerUrl ?? null,
+                    date: new Date(input.date),
+                    startTime: new Date(input.startTime),
+                    endTime: input.endTime ? new Date(input.endTime) : null,
+                    seatingType: input.seatingType,
+                    ticketTypes: { create: ticketTypes },
+                    ...(input.venue && {
+                        venue: {
+                            create: {
+                                name: input.venue.name,
+                                address: input.venue.address,
+                                district: input.venue.district,
+                                googleMaps: input.venue.googleMaps ?? null,
+                            },
+                        },
+                    }),
+                },
+                include: EVENT_INCLUDE,
+            });
+        } catch (e) {
+            if (
+                e instanceof Prisma.PrismaClientKnownRequestError &&
+                e.code === "P2002" &&
+                String(e.meta?.target).includes("slug")
+            ) {
+                continue;
+            }
+            throw e;
+        }
+    }
+
+    throw new AppError(500, "Failed to create event, Please try again");
 }
 
 export async function listEvents(query: ListEventsQuery) {
@@ -69,12 +115,19 @@ export async function listEvents(query: ListEventsQuery) {
         ...(categoryId && { categoryId }),
         ...(date && { date: new Date(date) }),
         ...(district && {
-            venue: { district: { contains: district, mode: "insensitive" as const } },
+            venue: {
+                district: { contains: district, mode: "insensitive" as const },
+            },
         }),
         ...(search && {
             OR: [
                 { title: { contains: search, mode: "insensitive" as const } },
-                { description: { contains: search, mode: "insensitive" as const } },
+                {
+                    description: {
+                        contains: search,
+                        mode: "insensitive" as const,
+                    },
+                },
             ],
         }),
     };
@@ -132,10 +185,7 @@ export async function updateEvent(
     });
 
     if (!organizer || organizer.id !== existingEvent.organizerId) {
-        throw new AppError(
-            403,
-            "Only the event creator can update this event",
-        );
+        throw new AppError(403, "Only the event creator can update this event");
     }
 
     if (input.categoryId) {
@@ -152,11 +202,19 @@ export async function updateEvent(
         where: { id },
         data: {
             ...(input.title !== undefined && { title: input.title }),
-            ...(input.description !== undefined && { description: input.description }),
-            ...(input.categoryId !== undefined && { categoryId: input.categoryId }),
-            ...(input.bannerUrl !== undefined && { bannerUrl: input.bannerUrl }),
+            ...(input.description !== undefined && {
+                description: input.description,
+            }),
+            ...(input.categoryId !== undefined && {
+                categoryId: input.categoryId,
+            }),
+            ...(input.bannerUrl !== undefined && {
+                bannerUrl: input.bannerUrl,
+            }),
             ...(input.date !== undefined && { date: new Date(input.date) }),
-            ...(input.startTime !== undefined && { startTime: new Date(input.startTime) }),
+            ...(input.startTime !== undefined && {
+                startTime: new Date(input.startTime),
+            }),
             ...(input.endTime !== undefined && {
                 endTime: input.endTime ? new Date(input.endTime) : null,
             }),
@@ -203,10 +261,7 @@ export async function deleteEvent(
     });
 
     if (!organizer || organizer.id !== existingEvent.organizerId) {
-        throw new AppError(
-            403,
-            "Only the event creator can delete this event",
-        );
+        throw new AppError(403, "Only the event creator can delete this event");
     }
 
     await prisma.event.delete({

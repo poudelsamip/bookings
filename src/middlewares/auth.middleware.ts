@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { AppError } from "../utils/error.util.js";
+import { AppError } from "../utils/error.js";
 import { verifyAccessToken } from "../lib/jwt.lib.js";
 
 export const authenticate = (
