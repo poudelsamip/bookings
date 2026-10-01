@@ -74,7 +74,7 @@ model Event {
   venue Venue?
 
   title       String
-  slug        String @unique
+  slug        String  @unique
   description String
   bannerUrl   String? @map("banner_url")
 
@@ -85,8 +85,8 @@ model Event {
   seatingType SeatingType @map("seating_type")
 
   ticketTypes TicketType[]
-  orders Order[]
-  tickets Ticket[]
+  orders      Order[]
+  tickets     Ticket[]
 
   status EventStatus @default(DRAFT)
 
@@ -163,45 +163,44 @@ enum TicketStatus {
 
 model TicketType {
   id String @id @default(uuid())
-  
-  eventId String @map("event_id")
-  event Event @relation(fields: [eventId], references: [id])
 
-  name String
+  eventId String @map("event_id")
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  name  String
   price Int
   total Int
-  held Int @default(0)
-  sold Int @default(0)
+  held  Int    @default(0)
+  sold  Int    @default(0)
 
-  tickets Ticket[]
+  tickets    Ticket[]
   orderItems OrderItem[]
 
   @@unique([eventId, name])
   @@index([eventId])
-
   @@map("ticket_type")
 }
 
 model Order {
   id String @id @default(uuid())
-  
+
   userId String @map("user_id")
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   eventId String @map("event_id")
-  event Event @relation(fields: [eventId], references: [id])
+  event   Event  @relation(fields: [eventId], references: [id])
 
-  total Int // in paisa
+  total  Int // money
   status OrderStatus
 
-  items OrderItem[]
-  tickets Ticket[]
+  items    OrderItem[]
+  tickets  Ticket[]
+  payments Payment[] // incase of failures we store them also
 
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId])
   @@index([eventId])
-
   @@map("orders")
 }
 
@@ -209,17 +208,16 @@ model OrderItem {
   id String @id @default(uuid())
 
   orderId String @map("order_id")
-  order Order @relation(fields: [orderId], references: [id])
+  order   Order  @relation(fields: [orderId], references: [id])
 
-  ticketTypeId String @map("ticket_type_id")
-  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+  ticketTypeId String     @map("ticket_type_id")
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
 
-  quantity Int
+  quantity  Int
   unitPrice Int @map("unit_price")
-  
+
   @@unique([orderId, ticketTypeId])
   @@index([ticketTypeId])
-
   @@map("order_items")
 }
 
@@ -227,15 +225,15 @@ model Ticket {
   id String @id @default(uuid())
 
   orderId String @map("order_id")
-  order Order @relation(fields: [orderId], references: [id])
+  order   Order  @relation(fields: [orderId], references: [id])
 
-  ticketTypeId String @map("ticket_type_id")
-  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+  ticketTypeId String     @map("ticket_type_id")
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
 
   eventId String @map("event_id")
   event   Event  @relation(fields: [eventId], references: [id])
 
-  qrCode String @unique @map("qr_code")
+  qrCode String       @unique @map("qr_code")
   status TicketStatus @default(VALID)
 
   checkedInAt DateTime? @map("checked_in_at")
@@ -245,6 +243,26 @@ model Ticket {
   @@index([orderId])
   @@index([eventId])
   @@index([ticketTypeId])
-
   @@map("tickets")
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  orderId String @map("order_id")
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  provider      PaymentProvider @default(ESEWA)
+  transactionId String?         @map("transaction_id")
+  amount        Int // money
+  status        PaymentStatus   @default(INITIATED)
+  rawResponse   Json?           @map("raw_response") // to store payment provider raw response of transaction
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, transactionId])
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
 }

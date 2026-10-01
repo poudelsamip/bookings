@@ -1,6 +1,8 @@
+import type { Prisma } from "../../../generated/prisma/client.js";
 import { EventStatus, OrderStatus } from "../../../generated/prisma/enums.js";
 import { prisma } from "../../lib/prisma.lib.js";
 import { AppError } from "../../utils/error.js";
+import { generateQrToken } from "../../utils/ticketToken.js";
 import { PurchaseTicketInput } from "./ticket.schema.js";
 
 export const holdTicket = async (
@@ -81,4 +83,51 @@ export const holdTicket = async (
 
         return order;
     });
+};
+
+type TxClient = Prisma.TransactionClient;
+
+type OrderItem = {
+    ticketTypeId: string;
+    quantity: number;
+};
+
+export const issueTickets = async (
+    tx: TxClient,
+    orderId: string,
+    eventId: string,
+    items: OrderItem[],
+) => {
+    for (const item of items) {
+        const ticketData = Array.from({ length: item.quantity }, () => ({
+            orderId,
+            ticketTypeId: item.ticketTypeId,
+            eventId,
+            qrCode: generateQrToken(),
+        }));
+
+        await tx.ticket.createMany({ data: ticketData });
+
+        await tx.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: {
+                held: { decrement: item.quantity },
+                sold: { increment: item.quantity },
+            },
+        });
+    }
+};
+
+export const releaseHeldTickets = async (
+    tx: TxClient,
+    items: OrderItem[],
+) => {
+    for (const item of items) {
+        await tx.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: {
+                held: { decrement: item.quantity },
+            },
+        });
+    }
 };

@@ -8,6 +8,12 @@ const envSchema = z.object({
 
     ACCESS_TOKEN_SECRET: z.string("ACCESS_TOKEN_SECRET is missing"),
     REFRESH_TOKEN_SECRET: z.string("REFRESH_TOKEN_SECRET is missing"),
+
+    MERCHANT_ID: z.string("MERCHANT_ID is missing"),
+    SECRET: z.string("eSEWA secret is missing"),
+
+    SUCCESS_URL: z.url("SUCCESS_URL is missing or invalid"),
+    FAILURE_URL: z.url("FAILURE_URL is missing or invalid"),
 });
 
 export type Env = z.infer<typeof envSchema>;

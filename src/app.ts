@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import authRouter from "./modules/auth/auth.route.js";
 import eventRouter from "./modules/event/event.route.js";
+import paymentRouter from "./modules/payment/payment.route.js";
 
 export function bootstrap() {
     const app = express();
@@ -29,6 +30,7 @@ export function bootstrap() {
 
     app.use("/api/auth", authRouter);
     app.use("/api", eventRouter);
+    app.use("/api/payment", paymentRouter);
 
     app.use(errorHandler);
 

@@ -5,4 +5,8 @@ import { authenticate } from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.post("/event/:id/hold", authenticate, validateZod(purchaseTicketSchema));
+router.post(
+    "/event/:id/order",
+    authenticate,
+    validateZod(purchaseTicketSchema),
+);
