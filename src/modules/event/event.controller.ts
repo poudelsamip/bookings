@@ -25,11 +25,14 @@ export const createEventHandler = asyncHandler(
 export const listEventsHandler = asyncHandler(
     async (req: Request, res: Response) => {
         const query = req.query as unknown as ListEventsQuery;
-        const result = await eventService.listEvents(query);
+        const { events, pagination } = await eventService.listEvents(query);
 
         res.status(200).json({
             success: true,
-            data: result,
+            data: {
+                events,
+                pagination,
+            },
         });
     },
 );
@@ -75,4 +78,3 @@ export const deleteEventHandler = asyncHandler(
         });
     },
 );
-

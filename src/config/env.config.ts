@@ -14,6 +14,12 @@ const envSchema = z.object({
 
     SUCCESS_URL: z.url("SUCCESS_URL is missing or invalid"),
     FAILURE_URL: z.url("FAILURE_URL is missing or invalid"),
+
+    SMTP_HOST: z.string("SMTP_HOST is missing"),
+    SMTP_PORT: z.coerce.number().default(587),
+    SMTP_USER: z.string("SMTP_USER is missing"),
+    SMTP_PASS: z.string("SMTP_PASS is missing"),
+    EMAIL_FROM: z.string().default("Ticket App <no-reply@ticketapp.com>"),
 });
 
 export type Env = z.infer<typeof envSchema>;

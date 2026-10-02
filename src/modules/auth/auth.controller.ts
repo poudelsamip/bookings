@@ -62,15 +62,15 @@ export const refreshHandler = asyncHandler(
             throw new AppError(401, "No refresh token provided");
         }
 
-        const tokens = await authService.refresh(token);
+        const { accessToken, refreshToken } = await authService.refresh(token);
 
-        res.cookie(REFRESH_COOKIE, tokens.refreshToken, COOKIE_OPTIONS);
+        res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTIONS);
 
         res.status(200).json({
             success: true,
             message: "Token refreshed successfully",
             data: {
-                accessToken: tokens.accessToken,
+                accessToken,
             },
         });
     },

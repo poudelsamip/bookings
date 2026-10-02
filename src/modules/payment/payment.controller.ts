@@ -28,10 +28,12 @@ export const esewaSuccessController = asyncHandler(
 
         const result = await esewaSuccess(encodedData);
 
-        res.json({
-            message: "Payment successful",
-            orderId: result.orderId,
-        });
+        // res.json({
+        //     message: "Payment successful",
+        //     orderId: result.orderId,
+        // });
+
+        return res.redirect("http://localhost:5173/payment-success");
     },
 );
 
@@ -41,6 +43,8 @@ export const esewaFailureController = asyncHandler(
 
         const result = await esewaFailure(encodedData ?? "");
 
-        res.status(200).json(result);
+        // res.status(200).json(result);
+
+        return res.redirect("http://localhost:5173/payment-failed");
     },
 );

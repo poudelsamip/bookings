@@ -94,6 +94,7 @@ type OrderItem = {
 
 export const issueTickets = async (
     tx: TxClient,
+    userId: string,
     orderId: string,
     eventId: string,
     items: OrderItem[],
@@ -101,6 +102,7 @@ export const issueTickets = async (
     for (const item of items) {
         const ticketData = Array.from({ length: item.quantity }, () => ({
             orderId,
+            userId,
             ticketTypeId: item.ticketTypeId,
             eventId,
             qrCode: generateQrToken(),
@@ -118,10 +120,7 @@ export const issueTickets = async (
     }
 };
 
-export const releaseHeldTickets = async (
-    tx: TxClient,
-    items: OrderItem[],
-) => {
+export const releaseHeldTickets = async (tx: TxClient, items: OrderItem[]) => {
     for (const item of items) {
         await tx.ticketType.update({
             where: { id: item.ticketTypeId },
@@ -130,4 +129,110 @@ export const releaseHeldTickets = async (
             },
         });
     }
+};
+
+export const getMyPurchasedEvents = async (userId: string) => {
+    const tickets = await prisma.ticket.findMany({
+        where: { userId, status: "VALID" },
+        select: {
+            event: {
+                select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    status: true,
+                    venue: { select: { district: true, address: true } },
+                },
+            },
+            ticketType: { select: { name: true } },
+        },
+    });
+
+    const eventMap = new Map<
+        string,
+        {
+            id: string;
+            title: string;
+            slug: string;
+            status: string;
+            venue: { district: string; address: string } | null;
+            counts: Map<string, number>;
+        }
+    >();
+
+    for (const { event, ticketType } of tickets) {
+        let entry = eventMap.get(event.id);
+        if (!entry) {
+            entry = { ...event, counts: new Map() };
+            eventMap.set(event.id, entry);
+        }
+        entry.counts.set(
+            ticketType.name,
+            (entry.counts.get(ticketType.name) ?? 0) + 1,
+        );
+    }
+
+    return Array.from(eventMap.values()).map(({ counts, ...event }) => ({
+        ...event,
+        tickets: Array.from(counts, ([name, quantity]) => ({ name, quantity })),
+    }));
+};
+
+export const getEventTickets = async (userId: string, eventId: string) => {
+    const event = await prisma.event.findUnique({
+        where: { id: eventId },
+        select: {
+            id: true,
+            title: true,
+            slug: true,
+            date: true,
+            seatingType: true,
+            organizer: {
+                select: {
+                    orgName: true,
+                },
+            },
+            category: {
+                select: {
+                    name: true,
+                    slug: true,
+                },
+            },
+            venue: true,
+        },
+    });
+
+    if (!event) {
+        throw new AppError(404, "Event not found");
+    }
+
+    const rows = await prisma.ticket.findMany({
+        where: { userId, eventId, status: "VALID" },
+        select: {
+            id: true,
+            qrCode: true,
+            ticketType: {
+                select: {
+                    id: true,
+                    name: true,
+                },
+            },
+        },
+    });
+
+    const tickets = rows
+        .map((t) => ({
+            id: t.id,
+            qrCode: t.qrCode,
+            ticketTypeId: t.ticketType.id,
+            ticketType: t.ticketType.name,
+        }))
+        .sort(
+            (a, b) =>
+                a.ticketType.localeCompare(b.ticketType, undefined, {
+                    sensitivity: "base",
+                }) || a.id.localeCompare(b.id),
+        );
+
+    return { event, tickets };
 };

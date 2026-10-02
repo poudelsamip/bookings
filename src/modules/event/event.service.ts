@@ -17,6 +17,34 @@ const EVENT_INCLUDE = {
     ticketTypes: true,
 } as const;
 
+const LIST_EVENTS_SELECT = {
+    id: true,
+    title: true,
+    slug: true,
+    date: true,
+    startTime: true,
+    bannerUrl: true,
+    organizer: {
+        select: {
+            id: true,
+            orgName: true,
+        },
+    },
+    venue: {
+        select: {
+            name: true,
+            address: true,
+            district: true,
+        },
+    },
+    category: {
+        select: {
+            name: true,
+            slug: true,
+        },
+    },
+} as const;
+
 async function createUniqueEventSlug(title: string): Promise<string> {
     const base = slugify(title, 74) || "event";
     let slug = base;
@@ -136,7 +164,7 @@ export async function listEvents(query: ListEventsQuery) {
         prisma.event.count({ where }),
         prisma.event.findMany({
             where,
-            include: EVENT_INCLUDE,
+            select: LIST_EVENTS_SELECT,
             orderBy: { date: "asc" },
             skip,
             take: limit,
