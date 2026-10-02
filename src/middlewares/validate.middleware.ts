@@ -10,8 +10,22 @@ export const validateZod = (schema: any) => {
             });
 
             if (validatedData.body) req.body = validatedData.body;
-            if (validatedData.query) req.query = validatedData.query;
-            if (validatedData.params) req.params = validatedData.params;
+            if (validatedData.query) {
+                Object.defineProperty(req, "query", {
+                    value: validatedData.query,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
+            }
+            if (validatedData.params) {
+                Object.defineProperty(req, "params", {
+                    value: validatedData.params,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
+            }
             next();
         } catch (error) {
             console.error(

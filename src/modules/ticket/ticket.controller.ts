@@ -9,11 +9,11 @@ import { PurchaseTicketInput } from "./ticket.schema.js";
 
 export const ticketHoldController = asyncHandler(
     async (
-        req: Request<{ id: string }, {}, PurchaseTicketInput>,
+        req: Request<{ eventId: string }, {}, PurchaseTicketInput>,
         res: Response,
     ) => {
         const userId = req.user!.userId;
-        const eventId = req.params.id;
+        const eventId = req.params.eventId;
 
         const ticketOrder = await holdTicket(userId, eventId, req.body);
 

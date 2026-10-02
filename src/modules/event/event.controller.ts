@@ -49,6 +49,18 @@ export const getEventByIdHandler = asyncHandler(
     },
 );
 
+export const getEventBySlugHandler = asyncHandler(
+    async (req: Request<{ slug: string }>, res: Response) => {
+        const slug = req.params.slug;
+        const event = await eventService.getEventBySlug(slug);
+
+        res.status(200).json({
+            success: true,
+            data: { event },
+        });
+    },
+);
+
 export const updateEventHandler = asyncHandler(
     async (req: Request<{ id: string }>, res: Response) => {
         const user = req.user!;

@@ -99,6 +99,7 @@ export async function createEvent(userId: string, input: EventInput) {
                     categoryId: input.categoryId,
                     title: input.title,
                     slug,
+                    status: "PUBLISHED",
                     description: input.description,
                     bannerUrl: input.bannerUrl ?? null,
                     date: new Date(input.date),
@@ -171,6 +172,7 @@ export async function listEvents(query: ListEventsQuery) {
         }),
     ]);
 
+
     return {
         events,
         pagination: {
@@ -185,6 +187,19 @@ export async function listEvents(query: ListEventsQuery) {
 export async function getEventById(id: string) {
     const event = await prisma.event.findUnique({
         where: { id },
+        include: EVENT_INCLUDE,
+    });
+
+    if (!event) {
+        throw new AppError(404, "Event not found");
+    }
+
+    return event;
+}
+
+export async function getEventBySlug(slug: string) {
+    const event = await prisma.event.findUnique({
+        where: { slug },
         include: EVENT_INCLUDE,
     });
 

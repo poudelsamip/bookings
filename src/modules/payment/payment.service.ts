@@ -38,7 +38,7 @@ export const initiateEsewaPayment = async (userId: string, orderId: string) => {
 
     const paymentData = {
         amount: order.total,
-        tax_amoutn: "0",
+        tax_amount: "0",
         total_amount: order.total,
         product_delivery_charge: "0",
         product_service_charge: "0",
@@ -169,8 +169,8 @@ export const esewaSuccess = async (encodedData: string) => {
         );
     });
 
-    const emailData = await buildTicketEmailData(payment.orderId);
-    await sendTicketConfirmationEmail(emailData);
+    // const emailData = await buildTicketEmailData(payment.orderId);
+    // await sendTicketConfirmationEmail(emailData);
 
     return { orderId: payment.orderId };
 };

@@ -99,6 +99,12 @@ export const eventIdParamSchema = z.object({
     }),
 });
 
+export const eventSlugParamSchema = z.object({
+    params: z.object({
+        slug: z.string().trim().min(1, "Event slug is required"),
+    }),
+});
+
 export const updateEventSchema = z.object({
     params: z.object({
         id: z.uuid("Invalid event ID"),
