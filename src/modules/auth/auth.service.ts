@@ -108,6 +108,7 @@ export async function refresh(refreshToken: string) {
 
     const user = await prisma.user.findUnique({
         where: { id: payload.userId },
+        include: { organizer: true },
     });
 
     if (!user) {
@@ -121,7 +122,7 @@ export async function refresh(refreshToken: string) {
     };
     const tokens = generateTokenPair(tokenPayload);
 
-    return tokens;
+    return { user: sanitizeUser(user), tokens };
 }
 
 function sanitizeUser<

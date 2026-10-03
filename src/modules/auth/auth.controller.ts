@@ -4,12 +4,13 @@ import * as authService from "./auth.service.js";
 import type { LoginInput, RegisterInput } from "./auth.schema.js";
 import { AppError } from "../../utils/error.js";
 
-const REFRESH_COOKIE = "refreshToken";
+export const REFRESH_COOKIE = "refreshToken";
 
-const COOKIE_OPTIONS = {
+export const COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
+    path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
@@ -62,15 +63,16 @@ export const refreshHandler = asyncHandler(
             throw new AppError(401, "No refresh token provided");
         }
 
-        const { accessToken, refreshToken } = await authService.refresh(token);
+        const { user, tokens } = await authService.refresh(token);
 
-        res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTIONS);
+        res.cookie(REFRESH_COOKIE, tokens.refreshToken, COOKIE_OPTIONS);
 
         res.status(200).json({
             success: true,
             message: "Token refreshed successfully",
             data: {
-                accessToken,
+                user,
+                accessToken: tokens.accessToken,
             },
         });
     },
@@ -81,7 +83,8 @@ export const logoutHandler = asyncHandler(
         res.clearCookie(REFRESH_COOKIE, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "lax",
+            path: "/",
         });
 
         res.status(200).json({

@@ -119,7 +119,7 @@ export const esewaSuccess = async (encodedData: string) => {
     }
 
     if (payment.status === "SUCCESS") {
-        return { orderId: payment.orderId };
+        return { paymentId: payment.id, userId: payment.order.userId };
     }
 
     if (
@@ -172,7 +172,7 @@ export const esewaSuccess = async (encodedData: string) => {
     // const emailData = await buildTicketEmailData(payment.orderId);
     // await sendTicketConfirmationEmail(emailData);
 
-    return { orderId: payment.orderId };
+    return { paymentId: payment.id, userId: payment.order.userId };
 };
 
 async function buildTicketEmailData(orderId: string) {
@@ -242,7 +242,7 @@ export const esewaFailure = async (encodedData: string) => {
 
     if (!transactionUuid) {
         // Nothing we can do without a transaction ID
-        return { message: "Payment failed" };
+        return { message: "Payment failed", userId: null };
     }
 
     const payment = await prisma.payment.findUnique({
@@ -262,7 +262,7 @@ export const esewaFailure = async (encodedData: string) => {
     });
 
     if (!payment || payment.status !== "INITIATED") {
-        return { message: "Payment failed" };
+        return { message: "Payment failed", userId: payment?.order?.userId ?? null };
     }
 
     await prisma.$transaction(async (tx) => {
@@ -279,5 +279,25 @@ export const esewaFailure = async (encodedData: string) => {
         await releaseHeldTickets(tx, payment.order.items);
     });
 
-    return { message: "Payment failed" };
+    return { message: "Payment failed", userId: payment.order.userId };
+};
+
+export const getPaymentInfo = async (userId: string, paymentId: string) => {
+    const payment = await prisma.payment.findUnique({
+        where: {
+            id: paymentId,
+            order: {
+                userId,
+            },
+        },
+        include: {
+            order: true,
+        },
+    });
+
+    if (!payment) {
+        throw new AppError(404, "Payment not found");
+    }
+
+    return payment;
 };

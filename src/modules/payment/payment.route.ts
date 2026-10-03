@@ -6,6 +6,7 @@ import {
     initiateEsewaPaymentController,
     esewaSuccessController,
     esewaFailureController,
+    paymentInfoController,
 } from "./payment.controller.js";
 
 const router = Router();
@@ -19,5 +20,7 @@ router.post(
     validateZod(paymentSchema),
     initiateEsewaPaymentController,
 );
+
+router.get("/:paymentId", authenticate, paymentInfoController);
 
 export default router;
