@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validateZod } from "../../middlewares/validate.middleware.js";
-import { authenticate } from "../../middlewares/auth.middleware.js";
+import { authenticate, requireOrganizer } from "../../middlewares/auth.middleware.js";
 import {
     createEventSchema,
     listEventsSchema,
@@ -25,6 +25,7 @@ router.get("/event/:slug", validateZod(eventSlugParamSchema), getEventBySlugHand
 router.post(
     "/event",
     authenticate,
+    requireOrganizer,
     validateZod(createEventSchema),
     createEventHandler,
 );
@@ -32,6 +33,7 @@ router.post(
 router.patch(
     "/event/:id",
     authenticate,
+    requireOrganizer,
     validateZod(updateEventSchema),
     updateEventHandler,
 );
@@ -39,6 +41,7 @@ router.patch(
 router.delete(
     "/event/:id",
     authenticate,
+    requireOrganizer,
     validateZod(deleteEventSchema),
     deleteEventHandler,
 );

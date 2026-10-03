@@ -5,6 +5,7 @@ export interface TokenPaylod {
     userId: string;
     email: string;
     role: string;
+    orgId?: string;
 }
 
 export const generateAccessToken = (payload: TokenPaylod) => {

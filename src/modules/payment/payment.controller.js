@@ -1,0 +1,58 @@
+import { asyncHandler } from "../../lib/asyncHandler.js";
+import { initiateEsewaPayment, esewaSuccess, esewaFailure, getPaymentInfo, } from "./payment.service.js";
+import { REFRESH_COOKIE, COOKIE_OPTIONS } from "../auth/auth.controller.js";
+import { generateTokenPair } from "../../lib/jwt.lib.js";
+import { prisma } from "../../lib/prisma.lib.js";
+export const initiateEsewaPaymentController = asyncHandler(async (req, res) => {
+    const userId = req.user.userId;
+    const orderId = req.params.orderId;
+    const paymentUrl = await initiateEsewaPayment(userId, orderId);
+    res.json({ paymentUrl });
+});
+export const esewaSuccessController = asyncHandler(async (req, res) => {
+    const encodedData = req.query.data;
+    if (!encodedData) {
+        res.status(400).json({ message: "Missing payment data" });
+        return;
+    }
+    const result = await esewaSuccess(encodedData);
+    if (result.userId) {
+        const user = await prisma.user.findUnique({
+            where: { id: result.userId },
+        });
+        if (user) {
+            const tokens = generateTokenPair({
+                userId: user.id,
+                email: user.email,
+                role: user.role,
+            });
+            res.cookie(REFRESH_COOKIE, tokens.refreshToken, COOKIE_OPTIONS);
+        }
+    }
+    return res.redirect(`http://localhost:5173/payment-success?paymentid=${result.paymentId}`);
+});
+export const esewaFailureController = asyncHandler(async (req, res) => {
+    const encodedData = req.query.data;
+    const result = await esewaFailure(encodedData ?? "");
+    if (result.userId) {
+        const user = await prisma.user.findUnique({
+            where: { id: result.userId },
+        });
+        if (user) {
+            const tokens = generateTokenPair({
+                userId: user.id,
+                email: user.email,
+                role: user.role,
+            });
+            res.cookie(REFRESH_COOKIE, tokens.refreshToken, COOKIE_OPTIONS);
+        }
+    }
+    return res.redirect("http://localhost:5173/payment-failed");
+});
+export const paymentInfoController = asyncHandler(async (req, res) => {
+    const userId = req.user.userId;
+    const paymentId = req.params.paymentId;
+    const payment = await getPaymentInfo(userId, paymentId);
+    return res.status(200).json({ data: payment });
+});
+//# sourceMappingURL=payment.controller.js.map

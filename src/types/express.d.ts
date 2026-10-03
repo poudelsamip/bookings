@@ -1,4 +1,4 @@
-import { TokenPaylod } from "../lib/jwt.lib.js";
+import { TokenPaylod } from "../lib/jwt.lib.ts";
 
 declare global {
     namespace Express {
