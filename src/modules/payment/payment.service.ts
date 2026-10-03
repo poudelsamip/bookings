@@ -5,7 +5,6 @@ import { eSewaConfig } from "../../config/esewa.config.js";
 import { generateEsewaSignature } from "../../lib/payment.lib.js";
 import { issueTickets, releaseHeldTickets } from "../ticket/ticket.service.js";
 import axios from "axios";
-import { sendTicketConfirmationEmail } from "../../utils/email.js";
 
 export const initiateEsewaPayment = async (userId: string, orderId: string) => {
     const order = await prisma.order.findUnique({
@@ -146,7 +145,72 @@ export const esewaSuccess = async (encodedData: string) => {
         );
     }
 
-    await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+            where: { id: payment.orderId },
+            include: { items: true },
+        });
+
+        if (!order) {
+            throw new AppError(404, "Order not found");
+        }
+
+        // if our background worker has alredy expired this
+        if (order.status === "EXPIRED") {
+            await prisma.payment.update({
+                where: { id: payment.id },
+                data: {
+                    status: "NEED_REFUND",
+                    rawResponse: statusData as object,
+                },
+            });
+
+            return { expired: true, userId: order.userId };
+        }
+
+        // if call-back arrives again
+        if (order.status === "PAID") {
+            if (payment.status !== "SUCCESS") {
+                await tx.payment.update({
+                    where: { id: payment.id },
+                    data: {
+                        status: "SUCCESS",
+                        rawResponse: statusData as object,
+                    },
+                });
+            }
+
+            return { expired: false, userId: order.userId };
+        }
+
+        // already expired but background worker has not cleaned yet.
+        if (order.expiresAt <= new Date()) {
+            await tx.order.update({
+                where: { id: payment.orderId },
+                data: { status: "EXPIRED" },
+            });
+
+            for (const item of order.items) {
+                await tx.ticketType.update({
+                    where: { id: item.ticketTypeId },
+                    data: { held: { decrement: item.quantity } },
+                });
+            }
+
+            await tx.payment.update({
+                where: { id: payment.id },
+                data: {
+                    status: "NEED_REFUND",
+                    rawResponse: statusData as object,
+                },
+            });
+
+            return {
+                expired: true,
+                userId: order.userId,
+            };
+        }
+
         await tx.payment.update({
             where: { id: payment.id },
             data: {
@@ -162,73 +226,26 @@ export const esewaSuccess = async (encodedData: string) => {
 
         await issueTickets(
             tx,
-            payment.order.userId,
-            payment.orderId,
-            payment.order.eventId,
-            payment.order.items,
+            order.userId,
+            order.id,
+            order.eventId,
+            order.items,
         );
+
+        return { success: true, userId: order.userId };
     });
 
-    // const emailData = await buildTicketEmailData(payment.orderId);
-    // await sendTicketConfirmationEmail(emailData);
+    if (result.expired) {
+        // TODO : send email about refund
+
+        throw new AppError(
+            410,
+            "Payment Deadline Exceeded. The order is expired. Your tickets were NOT BOOKED. The refund for your payment will be initated shortly",
+        );
+    }
 
     return { paymentId: payment.id, userId: payment.order.userId };
 };
-
-async function buildTicketEmailData(orderId: string) {
-    const order = await prisma.order.findUniqueOrThrow({
-        where: { id: orderId },
-        include: {
-            user: true,
-            event: {
-                include: { venue: true },
-            },
-            tickets: {
-                include: { ticketType: true },
-            },
-        },
-    });
-
-    // Group tickets by ticketType
-    const groupedMap = new Map<
-        string,
-        { name: string; unitPrice: number; qrCodes: string[] }
-    >();
-
-    for (const ticket of order.tickets) {
-        const key = ticket.ticketTypeId;
-        if (!groupedMap.has(key)) {
-            groupedMap.set(key, {
-                name: ticket.ticketType.name,
-                unitPrice: ticket.ticketType.price,
-                qrCodes: [],
-            });
-        }
-        groupedMap.get(key)!.qrCodes.push(ticket.qrCode);
-    }
-
-    const tickets = Array.from(groupedMap.values()).map((g) => ({
-        ticketTypeName: g.name,
-        quantity: g.qrCodes.length,
-        unitPrice: g.unitPrice,
-        qrCodes: g.qrCodes,
-    }));
-
-    return {
-        to: order.user.email,
-        userName: order.user.fullName ?? order.user.email,
-        eventTitle: order.event.title,
-        eventDate: order.event.date,
-        eventStartTime: order.event.startTime,
-        ...(order.event.venue?.name && { venueName: order.event.venue.name }),
-        ...(order.event.venue?.address && {
-            venueAddress: order.event.venue.address,
-        }),
-        orderId: order.id,
-        tickets,
-        totalAmount: order.total,
-    };
-}
 
 export const esewaFailure = async (encodedData: string) => {
     let transactionUuid: string | null = null;
@@ -262,7 +279,10 @@ export const esewaFailure = async (encodedData: string) => {
     });
 
     if (!payment || payment.status !== "INITIATED") {
-        return { message: "Payment failed", userId: payment?.order?.userId ?? null };
+        return {
+            message: "Payment failed",
+            userId: payment?.order?.userId ?? null,
+        };
     }
 
     await prisma.$transaction(async (tx) => {

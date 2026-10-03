@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.lib.js";
 import { AppError } from "../../utils/error.js";
 import { generateQrToken } from "../../utils/ticketToken.js";
 import { PurchaseTicketInput } from "./ticket.schema.js";
+import { sendOrderConfirmationEmail } from "./ticket.email.js";
 
 export const holdTicket = async (
     userId: string,
@@ -73,6 +74,7 @@ export const holdTicket = async (
                 eventId,
                 total,
                 status: OrderStatus.PENDING,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000), //expire order after 10 min
                 items: {
                     createMany: {
                         data: orderItems,
@@ -118,6 +120,8 @@ export const issueTickets = async (
             },
         });
     }
+
+    // TODO: Send Tickets Confirmation Email
 };
 
 export const releaseHeldTickets = async (tx: TxClient, items: OrderItem[]) => {

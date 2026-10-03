@@ -155,6 +155,7 @@ enum PaymentStatus {
   SUCCESS
   FAILED
   REFUNDED
+  NEED_REFUND
 }
 
 enum TicketStatus {
@@ -194,6 +195,8 @@ model Order {
   total  Int // money
   status OrderStatus
 
+  expiresAt DateTime @map("expires_at")
+
   items    OrderItem[]
   tickets  Ticket[]
   payments Payment[] // incase of failures we store them also
@@ -202,6 +205,7 @@ model Order {
 
   @@index([userId])
   @@index([eventId])
+  @@index([status, expiresAt])
   @@map("orders")
 }
 
