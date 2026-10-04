@@ -43,3 +43,21 @@ export const requireOrganizer = asyncHandler(
         next();
     },
 );
+
+export const requireStaff = asyncHandler(
+    async (req: Request, _res: Response, next: NextFunction) => {
+        if (req.user?.role !== UserRole.STAFF) {
+            throw new AppError(403, "Staff access required");
+        }
+
+        const staffEntry = await prisma.staff.findFirst({
+            where: { userId: req.user.userId },
+        });
+        if (!staffEntry) {
+            throw new AppError(403, "Staff membership not found");
+        }
+
+        req.user = { ...req.user, orgId: staffEntry.organizerId };
+        next();
+    },
+);

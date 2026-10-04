@@ -76,9 +76,26 @@ export const getOrgEventBySlug = async (
                     price: true,
                     total: true,
                     sold: true,
+                    tickets: {
+                        where: { checkedInAt: { not: null } },
+                        select: { id: true },
+                    },
                 },
             },
         },
     });
-    return event;
+
+    if (!event) return null;
+
+    return {
+        ...event,
+        ticketTypes: event.ticketTypes.map((tt) => ({
+            id: tt.id,
+            name: tt.name,
+            price: tt.price,
+            total: tt.total,
+            sold: tt.sold,
+            scanned: tt.tickets.length,
+        })),
+    };
 };

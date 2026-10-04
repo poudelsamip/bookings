@@ -30,9 +30,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  organizer Organizer?
+  organizer    Organizer?
+  staffEntries Staff[]
 
-  orders Order[]
+  orders  Order[]
   tickets Ticket[]
 
   @@map("users")
@@ -51,9 +52,51 @@ model Organizer {
   website      String?
   logoUrl      String? @map("logo_url")
 
-  events Event[]
+  events       Event[]
+  staffInvites StaffInvite[]
+  staff        Staff[]
 
   @@map("organizer")
+}
+
+enum StaffInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+model StaffInvite {
+  id String @id @default(uuid())
+
+  organizerId String    @map("organizer_id")
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+
+  email     String
+  token     String            @unique
+  status    StaffInviteStatus @default(PENDING)
+  expiresAt DateTime          @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizerId])
+  @@index([token])
+  @@map("staff_invites")
+}
+
+model Staff {
+  id String @id @default(uuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  organizerId String    @map("organizer_id")
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, organizerId])
+  @@index([organizerId])
+  @@map("staff")
 }
 
 enum EventStatus {

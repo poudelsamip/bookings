@@ -22,6 +22,8 @@ const envSchema = z.object({
     EMAIL_FROM: z.string().default("Ticket App <no-reply@ticketapp.com>"),
 
     REDIS_URL: z.string().min(1, "REDIS_URL is missing"),
+
+    CLIENT_URL: z.string().default("http://localhost:5173"),
 });
 
 export type Env = z.infer<typeof envSchema>;

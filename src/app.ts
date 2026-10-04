@@ -8,6 +8,7 @@ import categoryRouter from "./modules/event/category.route.js";
 import paymentRouter from "./modules/payment/payment.route.js";
 import ticketRouter from "./modules/ticket/ticket.route.js";
 import organizerRouter from "./modules/organizer/organizer.route.js";
+import staffRouter from "./modules/staff/staff.route.js";
 
 export function bootstrap() {
     const app = express();
@@ -48,6 +49,7 @@ export function bootstrap() {
     app.use("/api/payment", paymentRouter);
     app.use("/api", ticketRouter);
     app.use("/api", organizerRouter);
+    app.use("/api", staffRouter);
 
     app.use(errorHandler);
 
