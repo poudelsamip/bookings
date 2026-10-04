@@ -1,6 +1,6 @@
-import QRCode from "qrcode";
 import { transporter } from "../lib/mailer.lib.js";
 import { ENV } from "../config/env.config.js";
+import { prisma } from "../lib/prisma.lib.js";
 
 export interface TicketConfirmationData {
     to: string;
@@ -10,21 +10,14 @@ export interface TicketConfirmationData {
     eventStartTime: Date;
     venueName?: string;
     venueAddress?: string;
-    venueMapUrl?: string; // Venue.googleMaps
+    venueMapUrl?: string;
     orderId: string;
     tickets: {
         ticketTypeName: string;
         quantity: number;
         unitPrice: number;
-        qrCodes: string[];
     }[];
     totalAmount: number;
-}
-
-interface FlatTicket {
-    ticketTypeName: string;
-    code: string;
-    cid: string;
 }
 
 function escapeHtml(value: string): string {
@@ -51,19 +44,6 @@ function formatTime(date: Date): string {
         minute: "2-digit",
         hour12: true,
     });
-}
-
-function flattenTickets(
-    tickets: TicketConfirmationData["tickets"],
-): FlatTicket[] {
-    let index = 0;
-    return tickets.flatMap((t) =>
-        t.qrCodes.map((code) => ({
-            ticketTypeName: t.ticketTypeName,
-            code,
-            cid: `qr-${index++}@ticketbro`,
-        })),
-    );
 }
 
 const TEXT = "font-size:14px;line-height:1.6;color:#111111;";
@@ -95,25 +75,8 @@ function buildTicketCountsHtml(
         .join("<br/>");
 }
 
-function buildTicketBlocksHtml(flat: FlatTicket[]): string {
-    return flat
-        .map(
-            (t, i) => `
-              <tr>
-                <td style="padding:24px 0 20px;${i < flat.length - 1 ? "border-bottom:1px solid #dddddd;" : ""}">
-                  <div style="${TEXT}font-weight:700;">${escapeHtml(t.ticketTypeName)}</div>
-                  <div style="${TEXT}">Ticket code: <span style="font-family:Menlo,Consolas,monospace;">${escapeHtml(t.code)}</span></div>
-                  <img src="cid:${t.cid}" alt="QR code ${escapeHtml(t.code)}" width="160" height="160"
-                       style="display:block;margin-top:12px;border:1px solid #dddddd;border-radius:12px;" />
-                </td>
-              </tr>`,
-        )
-        .join("");
-}
-
 export function buildTicketConfirmationHtml(
     data: TicketConfirmationData,
-    flat: FlatTicket[] = flattenTickets(data.tickets),
 ): string {
     const firstName = escapeHtml(data.userName.split(" ")[0] ?? "");
 
@@ -150,14 +113,16 @@ export function buildTicketConfirmationHtml(
                 ${buildTicketCountsHtml(data.tickets)}
               </p>
 
-              <!-- Tickets -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid #dddddd;">
-                ${buildTicketBlocksHtml(flat)}
-              </table>
+              <!-- CTA -->
+              <p style="margin:24px 0 0;${TEXT}">
+                Please login to <strong>Ticket Bro</strong> to get your tickets.
+              </p>
+              <p style="margin:16px 0 0;text-align:center;">
+                <a href="${ENV.CLIENT_URL}" style="display:inline-block;padding:12px 32px;background:#111111;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.5px;">Open Ticket Bro</a>
+              </p>
 
               <!-- Note -->
-              <p style="margin:8px 0 0;${MUTED}">
-                Tickets can only be scanned once. Please do not share your QR code with others.
+              <p style="margin:16px 0 0;${MUTED}">
                 Need help? Reply to this email.
               </p>
 
@@ -175,23 +140,63 @@ export function buildTicketConfirmationHtml(
 export const sendTicketConfirmationEmail = async (
     data: TicketConfirmationData,
 ) => {
-    const flat = flattenTickets(data.tickets);
-    const html = buildTicketConfirmationHtml(data, flat);
-
-    const attachments = await Promise.all(
-        flat.map(async (t) => ({
-            filename: `${t.cid.split("@")[0]}.png`,
-            content: await QRCode.toBuffer(t.code, { width: 320, margin: 1 }),
-            contentType: "image/png",
-            cid: t.cid,
-        })),
-    );
+    const html = buildTicketConfirmationHtml(data);
 
     await transporter.sendMail({
         from: ENV.EMAIL_FROM,
         to: data.to,
         subject: `Booking confirmed – ${data.eventTitle}`,
         html,
-        attachments,
+    });
+};
+
+export const processTicketConfirmation = async (orderId: string) => {
+    const order = await prisma.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: {
+            user: true,
+            event: { include: { venue: true } },
+            tickets: { include: { ticketType: true } },
+        },
+    });
+
+    // Group tickets by type
+    const groupedMap = new Map<
+        string,
+        { name: string; unitPrice: number; count: number }
+    >();
+
+    for (const ticket of order.tickets) {
+        const key = ticket.ticketTypeId;
+        if (!groupedMap.has(key)) {
+            groupedMap.set(key, {
+                name: ticket.ticketType.name,
+                unitPrice: ticket.ticketType.price,
+                count: 0,
+            });
+        }
+        groupedMap.get(key)!.count++;
+    }
+
+    const tickets = Array.from(groupedMap.values()).map((g) => ({
+        ticketTypeName: g.name,
+        quantity: g.count,
+        unitPrice: g.unitPrice,
+    }));
+
+    const venue = order.event.venue;
+
+    await sendTicketConfirmationEmail({
+        to: order.user.email,
+        userName: order.user.fullName ?? order.user.email,
+        eventTitle: order.event.title,
+        eventDate: order.event.date,
+        eventStartTime: order.event.startTime,
+        venueName: venue?.name || "",
+        venueAddress: venue?.address || "",
+        venueMapUrl: venue?.googleMaps || "",
+        orderId: order.id,
+        tickets,
+        totalAmount: order.total,
     });
 };

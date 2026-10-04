@@ -1,10 +1,10 @@
 import crypto from "crypto";
 import { prisma } from "../../lib/prisma.lib.js";
-import { transporter } from "../../lib/mailer.lib.js";
 import { hashPassword } from "../../lib/password.lib.js";
 import { generateInviteToken, verifyInviteToken } from "../../lib/jwt.lib.js";
 import { AppError } from "../../utils/error.js";
 import { ENV } from "../../config/env.config.js";
+import { addEmailJob } from "../../queues/email.queue.js";
 import type { InviteStaffInput, AcceptInviteInput } from "./staff.schema.js";
 
 export const inviteStaff = async (
@@ -74,24 +74,10 @@ export const inviteStaff = async (
 
     const magicLink = `${ENV.CLIENT_URL}/staff/accept-invite?token=${jwtToken}`;
 
-    await transporter.sendMail({
-        from: ENV.EMAIL_FROM,
+    await addEmailJob("staff-invite", {
         to: input.email,
-        subject: `You're invited to join ${organizer.orgName} as Staff`,
-        html: `
-      <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
-        <h2 style="color: #111;">Staff Invitation</h2>
-        <p>You've been invited to join <strong>${organizer.orgName}</strong> as a staff member on Ticket App.</p>
-        <p>Click the button below to accept the invitation and set your password. This link expires in <strong>24 hours</strong>.</p>
-        <a href="${magicLink}"
-           style="display:inline-block;margin:16px 0;padding:12px 24px;background:#111;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
-          Accept Invitation
-        </a>
-        <p style="color:#666;font-size:13px;">If you didn't expect this invitation, you can ignore this email.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-        <p style="color:#999;font-size:12px;">Ticket App</p>
-      </div>
-    `,
+        orgName: organizer.orgName,
+        magicLink,
     });
 
     return { message: "Invitation sent successfully", email: input.email };

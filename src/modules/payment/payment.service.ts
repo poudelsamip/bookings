@@ -4,6 +4,7 @@ import { AppError } from "../../utils/error.js";
 import { eSewaConfig } from "../../config/esewa.config.js";
 import { generateEsewaSignature } from "../../lib/payment.lib.js";
 import { issueTickets, releaseHeldTickets } from "../ticket/ticket.service.js";
+import { cancelOrderExpiryJob } from "../../queues/order-expiry.queue.js";
 import axios from "axios";
 
 export const initiateEsewaPayment = async (userId: string, orderId: string) => {
@@ -244,6 +245,8 @@ export const esewaSuccess = async (encodedData: string) => {
         );
     }
 
+    await cancelOrderExpiryJob(payment.orderId);
+
     return { paymentId: payment.id, userId: payment.order.userId };
 };
 
@@ -298,6 +301,8 @@ export const esewaFailure = async (encodedData: string) => {
 
         await releaseHeldTickets(tx, payment.order.items);
     });
+
+    await cancelOrderExpiryJob(payment.orderId);
 
     return { message: "Payment failed", userId: payment.order.userId };
 };

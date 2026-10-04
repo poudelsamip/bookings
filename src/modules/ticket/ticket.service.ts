@@ -4,14 +4,15 @@ import { prisma } from "../../lib/prisma.lib.js";
 import { AppError } from "../../utils/error.js";
 import { generateQrToken } from "../../utils/ticketToken.js";
 import { PurchaseTicketInput } from "./ticket.schema.js";
-import { sendOrderConfirmationEmail } from "./ticket.email.js";
+import { addEmailJob } from "../../queues/email.queue.js";
+import { addOrderExpiryJob } from "../../queues/order-expiry.queue.js";
 
 export const holdTicket = async (
     userId: string,
     eventId: string,
     input: PurchaseTicketInput,
 ) => {
-    return await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx) => {
         const event = await tx.event.findUnique({ where: { id: eventId } });
 
         if (!event || event.status !== EventStatus.PUBLISHED) {
@@ -85,6 +86,11 @@ export const holdTicket = async (
 
         return order;
     });
+
+    const delayMs = Math.max(0, order.expiresAt.getTime() - Date.now());
+    await addOrderExpiryJob(order.id, delayMs);
+
+    return order;
 };
 
 type TxClient = Prisma.TransactionClient;
@@ -121,7 +127,11 @@ export const issueTickets = async (
         });
     }
 
-    await sendOrderConfirmationEmail(orderId);
+    await addEmailJob("ticket-confirmation", { orderId });
+
+    // sendOrderConfirmationEmail(orderId).catch((err) =>
+    //     console.error("[issueTickets] Failed to send confirmation email:", err),
+    // );
 };
 
 export const releaseHeldTickets = async (tx: TxClient, items: OrderItem[]) => {
