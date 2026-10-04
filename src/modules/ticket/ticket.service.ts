@@ -121,7 +121,7 @@ export const issueTickets = async (
         });
     }
 
-    // TODO: Send Tickets Confirmation Email
+    await sendOrderConfirmationEmail(orderId);
 };
 
 export const releaseHeldTickets = async (tx: TxClient, items: OrderItem[]) => {

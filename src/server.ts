@@ -1,14 +1,19 @@
 import { bootstrap } from "./app.js";
+import { ENV } from "./config/env.config.js";
+import { expireOrder } from "./jobs/expireOrder.js";
 import { prisma } from "./lib/prisma.lib.js";
+import cron from "node-cron";
 
 async function main() {
     console.log("CONNECTING TO DATABSE ...");
     await prisma.$connect();
     console.log("DATABASE CONNECTION ESTABLISHED");
 
+    cron.schedule("* * * * *", expireOrder);
+
     const app = bootstrap();
-    const server = app.listen(3000, () => {
-        console.log("SERVER RUNNING ON http://localhost:3000");
+    const server = app.listen(ENV.PORT, () => {
+        console.log(`SERVER RUNNING ON http://localhost:${ENV.PORT}`);
     });
 
     const shutdown = async (signal: string) => {

@@ -20,6 +20,8 @@ const envSchema = z.object({
     SMTP_USER: z.string().min(1, "SMTP_USER is missing"),
     SMTP_PASS: z.string().min(1, "SMTP_PASS is missing"),
     EMAIL_FROM: z.string().default("Ticket App <no-reply@ticketapp.com>"),
+
+    REDIS_URL: z.string().min(1, "REDIS_URL is missing"),
 });
 
 export type Env = z.infer<typeof envSchema>;

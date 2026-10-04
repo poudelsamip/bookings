@@ -9,6 +9,7 @@ import type {
     UpdateEventInput,
 } from "./event.schema.js";
 import { slugify } from "../../utils/slugify.js";
+import { cacheEvent, deleteCache, getCachedEvent } from "./event.cache.js";
 
 const EVENT_INCLUDE = {
     venue: true,
@@ -172,7 +173,6 @@ export async function listEvents(query: ListEventsQuery) {
         }),
     ]);
 
-
     return {
         events,
         pagination: {
@@ -198,6 +198,14 @@ export async function getEventById(id: string) {
 }
 
 export async function getEventBySlug(slug: string) {
+    const cachedEvent = await getCachedEvent(slug);
+
+    if (cachedEvent) {
+        console.log("CACHE HIT - EVENT : ", slug);
+        return cachedEvent;
+    }
+
+    console.log("CACHE MISS - EVENT : ", slug);
     const event = await prisma.event.findUnique({
         where: { slug },
         include: EVENT_INCLUDE,
@@ -206,6 +214,8 @@ export async function getEventBySlug(slug: string) {
     if (!event) {
         throw new AppError(404, "Event not found");
     }
+
+    await cacheEvent(slug, event);
 
     return event;
 }
@@ -222,6 +232,8 @@ export async function updateEvent(
     if (!existingEvent) {
         throw new AppError(404, "Event not found");
     }
+
+    await deleteCache(existingEvent.slug);
 
     const organizer = await prisma.organizer.findUnique({
         where: { userId: user.userId },
@@ -298,6 +310,8 @@ export async function deleteEvent(
     if (!existingEvent) {
         throw new AppError(404, "Event not found");
     }
+
+    await deleteCache(existingEvent.slug);
 
     const organizer = await prisma.organizer.findUnique({
         where: { userId: user.userId },
