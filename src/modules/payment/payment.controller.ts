@@ -9,6 +9,7 @@ import {
 import { REFRESH_COOKIE, COOKIE_OPTIONS } from "../auth/auth.controller.js";
 import { generateTokenPair } from "../../lib/jwt.lib.js";
 import { prisma } from "../../lib/prisma.lib.js";
+import { ENV } from "../../config/env.config.js";
 
 export const initiateEsewaPaymentController = asyncHandler(
     async (req: Request<{ orderId: string }>, res: Response) => {
@@ -47,7 +48,7 @@ export const esewaSuccessController = asyncHandler(
         }
 
         return res.redirect(
-            `http://localhost:5173/payment-success?paymentid=${result.paymentId}`,
+            `${ENV.CLIENT_URL}/payment-success?paymentid=${result.paymentId}`,
         );
     },
 );
@@ -72,7 +73,7 @@ export const esewaFailureController = asyncHandler(
             }
         }
 
-        return res.redirect("http://localhost:5173/payment-failed");
+        return res.redirect(`${ENV.CLIENT_URL}/payment-failed`);
     },
 );
 

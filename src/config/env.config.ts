@@ -23,7 +23,7 @@ const envSchema = z.object({
 
     REDIS_URL: z.string().min(1, "REDIS_URL is missing"),
 
-    CLIENT_URL: z.string().default("http://localhost:5173"),
+    CLIENT_URL: z.string().min(1, "CLIENT_URL is missing"),
 });
 
 export type Env = z.infer<typeof envSchema>;
