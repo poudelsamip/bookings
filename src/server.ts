@@ -1,3 +1,6 @@
+import dns from "node:dns";
+dns.setDefaultResultOrder("ipv4first");
+
 import { bootstrap } from "./app.js";
 import { ENV } from "./config/env.config.js";
 import { syncPendingOrderExpiryJobs } from "./jobs/expireOrder.js";
