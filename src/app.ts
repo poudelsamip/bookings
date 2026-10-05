@@ -14,13 +14,15 @@ import { ENV } from "./config/env.config.js";
 export function bootstrap() {
     const app = express();
 
+    app.set("trust proxy", 1);
+
     app.use(
         cors({
             origin: [
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "http://localhost:5174",
-                ENV.CLIENT_URL
+                ENV.CLIENT_URL.replace(/\/$/, ""),
             ],
             credentials: true,
         }),

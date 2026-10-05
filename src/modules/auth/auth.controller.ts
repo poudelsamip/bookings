@@ -6,10 +6,12 @@ import { AppError } from "../../utils/error.js";
 
 export const REFRESH_COOKIE = "refreshToken";
 
+const isProd = process.env.NODE_ENV === "production";
+
 export const COOKIE_OPTIONS = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    secure: isProd,
+    sameSite: (isProd ? "none" : "lax") as "none" | "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
 };
@@ -81,10 +83,8 @@ export const refreshHandler = asyncHandler(
 export const logoutHandler = asyncHandler(
     async (_req: Request, res: Response) => {
         res.clearCookie(REFRESH_COOKIE, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/",
+            ...COOKIE_OPTIONS,
+            maxAge: undefined,
         });
 
         res.status(200).json({
