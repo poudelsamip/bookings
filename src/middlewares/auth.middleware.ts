@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/error.js";
 import { verifyAccessToken } from "../lib/jwt.lib.js";
 import { prisma } from "../lib/prisma.lib.js";
-import { UserRole } from "../../generated/prisma/enums.js";
+import { UserRole } from "../generated/prisma/enums.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 
 export const authenticate = asyncHandler(

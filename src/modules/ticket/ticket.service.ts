@@ -1,5 +1,5 @@
-import type { Prisma } from "../../../generated/prisma/client.js";
-import { EventStatus, OrderStatus } from "../../../generated/prisma/enums.js";
+import type { Prisma } from "../../generated/prisma/client.js";
+import { EventStatus, OrderStatus } from "../../generated/prisma/enums.js";
 import { prisma } from "../../lib/prisma.lib.js";
 import { AppError } from "../../utils/error.js";
 import { generateQrToken } from "../../utils/ticketToken.js";

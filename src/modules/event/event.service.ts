@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma.lib.js";
 import { AppError } from "../../utils/error.js";
-import { Prisma } from "../../../generated/prisma/client.js";
-import { EventStatus } from "../../../generated/prisma/enums.js";
+import { Prisma } from "../../generated/prisma/client.js";
+import { EventStatus } from "../../generated/prisma/enums.js";
 import { randomInt } from "node:crypto";
 import type {
     EventInput,
