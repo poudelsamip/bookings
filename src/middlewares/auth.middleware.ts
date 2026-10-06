@@ -61,3 +61,12 @@ export const requireStaff = asyncHandler(
         next();
     },
 );
+
+export const requireAdmin = asyncHandler(
+    async (req: Request, _res: Response, next: NextFunction) => {
+        if (req.user?.role !== UserRole.ADMIN) {
+            throw new AppError(403, "Admin access required");
+        }
+        next();
+    },
+);

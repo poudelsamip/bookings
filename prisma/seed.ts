@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
+import bcrypt from "bcrypt";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -38,7 +39,39 @@ function categorySlug(name: string): string {
         .replace(/^-+|-+$/g, "");
 }
 
-async function main() {
+async function seedAdmin() {
+    console.log("\nSeeding admin user...");
+
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+        throw new Error(
+            "ADMIN_EMAIL and ADMIN_PASSWORD must be set in .env to seed the admin user",
+        );
+    }
+
+    const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+
+    await prisma.user.upsert({
+        where: { email: ADMIN_EMAIL },
+        update: {
+            role: "ADMIN",
+            fullName: "TicketBro Admin",
+            passwordHash,
+        },
+        create: {
+            email: ADMIN_EMAIL,
+            passwordHash,
+            fullName: "TicketBro Admin",
+            role: "ADMIN",
+        },
+    });
+
+    console.log(`Admin user seeded: ${ADMIN_EMAIL}`);
+}
+
+async function seedCategories() {
     console.log("Seeding event categories...");
 
     for (const name of categories) {
@@ -56,9 +89,14 @@ async function main() {
     console.log(`Seeded ${categories.length} event categories successfully.`);
 }
 
+async function main() {
+    await seedCategories();
+    await seedAdmin();
+}
+
 main()
     .catch((error: unknown) => {
-        console.error("Event category seeding failed:", error);
+        console.error("Seeding failed:", error);
         process.exitCode = 1;
     })
     .finally(async () => {

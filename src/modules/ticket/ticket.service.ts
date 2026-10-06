@@ -44,61 +44,60 @@ export const holdTicket = async (
         let total = 0;
 
         for (const item of items) {
-            const ticketType = await tx.ticketType.findFirst({
-                where: {
-                    id: item.ticketTypeId,
-                    eventId,
-                },
-            });
+            const updated = await tx.$executeRaw`
+                UPDATE "TicketType"
+                SET held = held + ${item.quantity}
+                WHERE id = ${item.ticketTypeId}::uuid
+                  AND "eventId" = ${eventId}::uuid
+                  AND (total - sold - held) >= ${item.quantity}
+            `;
 
-            if (!ticketType) {
-                throw new AppError(404, "Ticket type not found");
-            }
+            if (updated === 0) {
+                // either the ticket type doesnt exist for this event or there arent
+                // enough seats left. fetch the row to give a precise error
+                const ticketType = await tx.ticketType.findFirst({
+                    where: { id: item.ticketTypeId, eventId },
+                });
 
-            const available =
-                ticketType.total - ticketType.sold - ticketType.held;
+                if (!ticketType) {
+                    throw new AppError(404, "Ticket type not found");
+                }
 
-            if (item.quantity > available) {
+                const available =
+                    ticketType.total - ticketType.sold - ticketType.held;
                 throw new AppError(
                     400,
                     `Only ${available} are available for ${ticketType.name}`,
                 );
             }
 
-            total += ticketType.price * item.quantity;
-
-            await tx.ticketType.update({
-                where: { id: ticketType.id },
-                data: {
-                    held: {
-                        increment: item.quantity,
-                    },
-                },
+            const ticketType = await tx.ticketType.findUniqueOrThrow({
+                where: { id: item.ticketTypeId },
+                select: { price: true },
             });
 
+            total += ticketType.price * item.quantity;
             orderItems.push({
-                ticketTypeId: ticketType.id,
+                ticketTypeId: item.ticketTypeId,
                 quantity: item.quantity,
                 unitPrice: ticketType.price,
             });
         }
 
-        const order = await tx.order.create({
+        const newOrder = await tx.order.create({
             data: {
                 userId,
                 eventId,
                 total,
                 status: OrderStatus.PENDING,
-                expiresAt: new Date(Date.now() + 10 * 60 * 1000), //expire order after 10 min
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000),
                 items: {
-                    createMany: {
-                        data: orderItems,
-                    },
+                    createMany: { data: orderItems },
                 },
             },
         });
 
-        return order;
+        return newOrder;
     });
 
     const delayMs = Math.max(0, order.expiresAt.getTime() - Date.now());

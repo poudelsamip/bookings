@@ -9,6 +9,7 @@ import paymentRouter from "./modules/payment/payment.route.js";
 import ticketRouter from "./modules/ticket/ticket.route.js";
 import organizerRouter from "./modules/organizer/organizer.route.js";
 import staffRouter from "./modules/staff/staff.route.js";
+import adminRouter from "./modules/admin/admin.route.js";
 import { ENV } from "./config/env.config.js";
 
 export function bootstrap() {
@@ -54,6 +55,7 @@ export function bootstrap() {
     app.use("/api", ticketRouter);
     app.use("/api", organizerRouter);
     app.use("/api", staffRouter);
+    app.use("/api", adminRouter);
 
     app.use(errorHandler);
 
