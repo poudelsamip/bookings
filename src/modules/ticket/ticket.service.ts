@@ -13,6 +13,20 @@ export const holdTicket = async (
     input: PurchaseTicketInput,
 ) => {
     const order = await prisma.$transaction(async (tx) => {
+        // idempotency check, return existing pending order for this (user, event)
+        const existingOrder = await tx.order.findFirst({
+            where: {
+                userId,
+                eventId,
+                status: OrderStatus.PENDING,
+                expiresAt: { gt: new Date() },
+            },
+        });
+
+        if (existingOrder) {
+            return existingOrder;
+        }
+
         const event = await tx.event.findUnique({ where: { id: eventId } });
 
         if (!event || event.status !== EventStatus.PUBLISHED) {

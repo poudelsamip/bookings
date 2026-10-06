@@ -5,6 +5,7 @@ import { eSewaConfig } from "../../config/esewa.config.js";
 import { generateEsewaSignature } from "../../lib/payment.lib.js";
 import { issueTickets, releaseHeldTickets } from "../ticket/ticket.service.js";
 import { cancelOrderExpiryJob } from "../../queues/order-expiry.queue.js";
+import { redis } from "../../lib/redis.lib.js";
 import axios from "axios";
 
 export const initiateEsewaPayment = async (userId: string, orderId: string) => {
@@ -19,7 +20,13 @@ export const initiateEsewaPayment = async (userId: string, orderId: string) => {
         throw new AppError(404, "Order not found, Payment Cancelled");
     }
 
-    const transaction_uuid = randomUUID();
+    // idempotency check: if payment for this order was already initated.
+    // reuse same exisiting transactionId
+    const existingPayment = await prisma.payment.findFirst({
+        where: { orderId, status: "INITIATED" },
+    });
+
+    const transaction_uuid = existingPayment?.transactionId ?? randomUUID();
 
     const signature_string = `total_amount=${order.total},transaction_uuid=${transaction_uuid},product_code=${eSewaConfig.merchantId}`;
     const signature = generateEsewaSignature(
@@ -27,14 +34,16 @@ export const initiateEsewaPayment = async (userId: string, orderId: string) => {
         eSewaConfig.secret,
     );
 
-    await prisma.payment.create({
-        data: {
-            orderId,
-            transactionId: transaction_uuid,
-            amount: order.total,
-            status: "INITIATED",
-        },
-    });
+    if (!existingPayment) {
+        await prisma.payment.create({
+            data: {
+                orderId,
+                transactionId: transaction_uuid,
+                amount: order.total,
+                status: "INITIATED",
+            },
+        });
+    }
 
     const paymentData = {
         amount: order.total,
@@ -119,6 +128,24 @@ export const esewaSuccess = async (encodedData: string) => {
     }
 
     if (payment.status === "SUCCESS") {
+        return { paymentId: payment.id, userId: payment.order.userId };
+    }
+
+    // lock to prevent redundant callbacks.
+    const lockKey = `esewa:cb:lock:${data.transaction_uuid}`;
+    const acquired = await redis.set(lockKey, "1", "EX", 60, "NX");
+
+    if (!acquired) {
+        // another concurrent callback is already processing this transaction.
+        return { paymentId: payment.id, userId: payment.order.userId };
+    }
+
+    // double check: re-read status now that we hold the lock.
+    // another concurrent callback may have already processed this transaction.
+    const freshPayment = await prisma.payment.findUnique({
+        where: { id: payment.id },
+    });
+    if (freshPayment?.status === "SUCCESS") {
         return { paymentId: payment.id, userId: payment.order.userId };
     }
 
@@ -286,6 +313,25 @@ export const esewaFailure = async (encodedData: string) => {
             message: "Payment failed",
             userId: payment?.order?.userId ?? null,
         };
+    }
+
+    // lock: prevents concurrent duplicate failure callbacks from
+    // calling releaseHeldTickets and decrementing held below zero.
+    const lockKey = `esewa:cb:lock:${transactionUuid}`;
+    const acquired = await redis.set(lockKey, "1", "EX", 60, "NX");
+
+    if (!acquired) {
+        // another concurrent callback is already processing this failure.
+        return { message: "Payment failed", userId: payment.order.userId };
+    }
+
+    // double check: re-read status in case the first concurrent caller
+    // already committed between our initial read and lock acquisition.
+    const freshPayment = await prisma.payment.findUnique({
+        where: { id: payment.id },
+    });
+    if (freshPayment?.status !== "INITIATED") {
+        return { message: "Payment failed", userId: payment.order.userId };
     }
 
     await prisma.$transaction(async (tx) => {
