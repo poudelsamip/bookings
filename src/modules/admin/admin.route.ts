@@ -9,6 +9,8 @@ import {
     getAllPaymentsHandler,
     markRefundedHandler,
     getPendingPayoutsHandler,
+    getPayoutHistoryHandler,
+    releasePayoutHandler,
     getPayoutSummaryHandler,
     getPendingRefundsHandler,
     getPaymentsByEventHandler,
@@ -40,7 +42,9 @@ router.get("/admin/refunds", getPendingRefundsHandler);
 router.patch("/admin/payments/:paymentId/refund", markRefundedHandler);
 
 // Payouts to organizers
-router.get("/admin/payouts", getPendingPayoutsHandler);
+router.get("/admin/payouts", getPayoutHistoryHandler);
+router.get("/admin/payouts/history", getPayoutHistoryHandler);
 router.get("/admin/payouts/summary", getPayoutSummaryHandler);
+router.post("/admin/payouts/release", releasePayoutHandler);
 
 export default router;

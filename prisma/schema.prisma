@@ -55,9 +55,11 @@ model Organizer {
   events       Event[]
   staffInvites StaffInvite[]
   staff        Staff[]
+  payouts      OrganizerPayout[]
 
   @@map("organizer")
 }
+
 
 enum StaffInviteStatus {
   PENDING
@@ -317,3 +319,19 @@ model Payment {
   @@index([status])
   @@map("payments")
 }
+
+// Tracks manual payout releases from admin to organizers
+model OrganizerPayout {
+  id String @id @default(uuid())
+
+  organizerId String    @map("organizer_id")
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
+
+  amount      Int
+  note        String?
+  releasedAt  DateTime @default(now()) @map("released_at")
+
+  @@index([organizerId])
+  @@map("organizer_payouts")
+}
+

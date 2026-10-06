@@ -12,6 +12,7 @@ export const getDashboardStats = async () => {
         totalRevenue,
         pendingRefunds,
         pendingPayoutsResult,
+        releasedPayoutsResult,
     ] = await Promise.all([
         prisma.user.count(),
         prisma.organizer.count(),
@@ -30,7 +31,14 @@ export const getDashboardStats = async () => {
                 order: { status: "PAID", event: { status: "COMPLETED" } },
             },
         }),
+        prisma.organizerPayout.aggregate({
+            _sum: { amount: true },
+        }),
     ]);
+
+    const completedRevenue = pendingPayoutsResult._sum.amount ?? 0;
+    const releasedPayouts = releasedPayoutsResult._sum.amount ?? 0;
+    const pendingPayouts = Math.max(0, completedRevenue - releasedPayouts);
 
     return {
         totalUsers,
@@ -40,7 +48,7 @@ export const getDashboardStats = async () => {
         totalTicketsSold,
         totalRevenue: totalRevenue._sum.amount ?? 0,
         pendingRefunds,
-        pendingPayouts: pendingPayoutsResult._sum.amount ?? 0,
+        pendingPayouts,
     };
 };
 
@@ -224,32 +232,119 @@ export const markPaymentRefunded = async (paymentId: string) => {
 };
 
 
-export const getPendingPayouts = async (page = 1, limit = 20) => {
+export const getPayoutHistory = async (page = 1, limit = 20) => {
     const skip = (page - 1) * limit;
 
-    const where = {
-        status: "SUCCESS" as const,
-        order: {
-            status: "PAID" as const,
-            event: { status: "COMPLETED" as const },
-        },
-    };
-
-    const [payments, total, totalAmount] = await Promise.all([
-        prisma.payment.findMany({
-            where,
+    const [payouts, total, totalAmount] = await Promise.all([
+        (prisma as any).organizerPayout.findMany({
             skip,
             take: limit,
-            orderBy: { createdAt: "desc" },
+            orderBy: { releasedAt: "desc" },
             include: {
+                organizer: {
+                    select: {
+                        id: true,
+                        orgName: true,
+                        contactEmail: true,
+                        user: { select: { email: true } },
+                    },
+                },
+            },
+        }),
+        (prisma as any).organizerPayout.count(),
+        (prisma as any).organizerPayout.aggregate({ _sum: { amount: true } }),
+    ]);
+
+    return {
+        payouts,
+        totalAmount: (totalAmount as any)._sum?.amount ?? 0,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit) || 1,
+        },
+    };
+};
+
+export const releasePayout = async (
+    organizerId: string,
+    amount?: number,
+    note?: string,
+) => {
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: organizerId },
+        select: { id: true, orgName: true },
+    });
+
+    if (!organizer) {
+        throw new AppError(404, "Organizer not found");
+    }
+
+    let payoutAmount = amount;
+    if (!payoutAmount || payoutAmount <= 0) {
+        const rows = await prisma.payment.findMany({
+            where: {
+                status: "SUCCESS",
                 order: {
-                    include: {
-                        user: { select: { email: true, fullName: true } },
+                    status: "PAID",
+                    event: { organizerId, status: "COMPLETED" },
+                },
+            },
+            select: { amount: true },
+        });
+        const totalEarned = rows.reduce((s, r) => s + r.amount, 0);
+        const releasedAgg = await (prisma as any).organizerPayout.aggregate({
+            where: { organizerId },
+            _sum: { amount: true },
+        });
+        const totalReleased = (releasedAgg as any)._sum?.amount ?? 0;
+        payoutAmount = Math.max(0, totalEarned - totalReleased);
+    }
+
+    if (payoutAmount <= 0) {
+        throw new AppError(400, "No pending amount to release for this organizer");
+    }
+
+    const payout = await (prisma as any).organizerPayout.create({
+        data: {
+            organizerId,
+            amount: payoutAmount,
+            note: note || "Manual payout release",
+        },
+        include: {
+            organizer: {
+                select: {
+                    id: true,
+                    orgName: true,
+                    contactEmail: true,
+                    user: { select: { email: true } },
+                },
+            },
+        },
+    });
+
+    return payout;
+};
+
+// Keep getPendingPayouts in case other modules still reference it
+export const getPendingPayouts = async (page = 1, limit = 20) => {
+    return getPayoutHistory(page, limit);
+};
+
+export const getPayoutSummaryByOrganizer = async () => {
+    const [rows, releasedPayouts] = await Promise.all([
+        prisma.payment.findMany({
+            where: {
+                status: "SUCCESS",
+                order: { status: "PAID", event: { status: "COMPLETED" } },
+            },
+            select: {
+                amount: true,
+                order: {
+                    select: {
                         event: {
                             select: {
-                                id: true,
-                                title: true,
-                                slug: true,
                                 organizer: {
                                     select: {
                                         id: true,
@@ -264,52 +359,27 @@ export const getPendingPayouts = async (page = 1, limit = 20) => {
                 },
             },
         }),
-        prisma.payment.count({ where }),
-        prisma.payment.aggregate({ _sum: { amount: true }, where }),
+        (prisma as any).organizerPayout.findMany({
+            select: { organizerId: true, amount: true },
+        }),
     ]);
 
-    return {
-        payments,
-        totalAmount: totalAmount._sum.amount ?? 0,
-        pagination: {
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-        },
-    };
-};
-
-export const getPayoutSummaryByOrganizer = async () => {
-    const rows = await prisma.payment.findMany({
-        where: {
-            status: "SUCCESS",
-            order: { status: "PAID", event: { status: "COMPLETED" } },
-        },
-        select: {
-            amount: true,
-            order: {
-                select: {
-                    event: {
-                        select: {
-                            organizer: {
-                                select: {
-                                    id: true,
-                                    orgName: true,
-                                    contactEmail: true,
-                                    user: { select: { email: true } },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-    });
+    const releasedMap = new Map<string, number>();
+    for (const p of (releasedPayouts as any[])) {
+        releasedMap.set(p.organizerId, (releasedMap.get(p.organizerId) ?? 0) + p.amount);
+    }
 
     const map = new Map<
         string,
-        { organizerId: string; orgName: string; email: string; totalAmount: number; count: number }
+        {
+            organizerId: string;
+            orgName: string;
+            email: string;
+            totalAmount: number;
+            count: number;
+            totalEarned: number;
+            totalReleased: number;
+        }
     >();
 
     for (const row of rows) {
@@ -324,15 +394,36 @@ export const getPayoutSummaryByOrganizer = async () => {
                 email,
                 totalAmount: 0,
                 count: 0,
+                totalEarned: 0,
+                totalReleased: releasedMap.get(key) ?? 0,
             });
         }
 
         const entry = map.get(key)!;
-        entry.totalAmount += row.amount;
+        entry.totalEarned += row.amount;
         entry.count += 1;
     }
 
-    return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+    const result: Array<{
+        organizerId: string;
+        orgName: string;
+        email: string;
+        totalAmount: number;
+        count: number;
+        totalEarned: number;
+        totalReleased: number;
+    }> = [];
+
+    for (const entry of map.values()) {
+        const remaining = Math.max(0, entry.totalEarned - entry.totalReleased);
+        entry.totalAmount = remaining;
+        // Only include organizers who have a pending amount owed
+        if (entry.totalAmount > 0) {
+            result.push(entry);
+        }
+    }
+
+    return result.sort((a, b) => b.totalAmount - a.totalAmount);
 };
 
 

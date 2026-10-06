@@ -79,12 +79,23 @@ export const markRefundedHandler = asyncHandler(
 );
 
 
+export const getPayoutHistoryHandler = asyncHandler(
+    async (req: Request, res: Response) => {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 20;
+
+        const data = await adminService.getPayoutHistory(page, limit);
+
+        return res.status(200).json({ success: true, data });
+    },
+);
+
 export const getPendingPayoutsHandler = asyncHandler(
     async (req: Request, res: Response) => {
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 20;
 
-        const data = await adminService.getPendingPayouts(page, limit);
+        const data = await adminService.getPayoutHistory(page, limit);
 
         return res.status(200).json({ success: true, data });
     },
@@ -95,6 +106,27 @@ export const getPayoutSummaryHandler = asyncHandler(
         const data = await adminService.getPayoutSummaryByOrganizer();
 
         return res.status(200).json({ success: true, data });
+    },
+);
+
+export const releasePayoutHandler = asyncHandler(
+    async (req: Request, res: Response) => {
+        const { organizerId, amount, note } = req.body;
+        if (!organizerId) {
+            return res.status(400).json({ success: false, message: "organizerId is required" });
+        }
+
+        const data = await adminService.releasePayout(
+            organizerId,
+            amount ? Number(amount) : undefined,
+            note,
+        );
+
+        return res.status(200).json({
+            success: true,
+            data,
+            message: "Payout released successfully",
+        });
     },
 );
 
