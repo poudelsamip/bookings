@@ -25,6 +25,10 @@ const envSchema = z.object({
     REDIS_URL: z.string().min(1, "REDIS_URL is missing"),
 
     CLIENT_URL: z.string().min(1, "CLIENT_URL is missing"),
+
+    CLOUDINARY_CLOUD_NAME: z.string().min(1, "CLOUDINARY_CLOUD_NAME is missing"),
+    CLOUDINARY_API_KEY: z.string().min(1, "CLOUDINARY_API_KEY is missing"),
+    CLOUDINARY_API_SECRET: z.string().min(1, "CLOUDINARY_API_SECRET is missing"),
 });
 
 export type Env = z.infer<typeof envSchema>;
