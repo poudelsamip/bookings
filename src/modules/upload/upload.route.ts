@@ -6,11 +6,6 @@ import { uploadImageHandler } from "./upload.controller.js";
 const router = Router();
 
 // POST /api/upload/image — any authenticated user
-router.post(
-    "/upload/image",
-    authenticate,
-    upload.single("image"),
-    uploadImageHandler,
-);
+router.post("/image", authenticate, upload.single("image"), uploadImageHandler);
 
 export default router;

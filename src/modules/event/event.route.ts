@@ -18,12 +18,12 @@ import {
 
 const router = Router();
 
-router.get("/event", validateZod(listEventsSchema), listEventsHandler);
+router.get("/", validateZod(listEventsSchema), listEventsHandler);
 
-router.get("/event/:slug", validateZod(eventSlugParamSchema), getEventBySlugHandler);
+router.get("/:slug", validateZod(eventSlugParamSchema), getEventBySlugHandler);
 
 router.post(
-    "/event",
+    "/",
     authenticate,
     requireOrganizer,
     validateZod(createEventSchema),
@@ -31,7 +31,7 @@ router.post(
 );
 
 router.patch(
-    "/event/:id",
+    "/:id",
     authenticate,
     requireOrganizer,
     validateZod(updateEventSchema),
@@ -39,7 +39,7 @@ router.patch(
 );
 
 router.delete(
-    "/event/:id",
+    "/:id",
     authenticate,
     requireOrganizer,
     validateZod(deleteEventSchema),

@@ -23,28 +23,28 @@ const router = Router();
 router.use(authenticate, requireAdmin);
 
 // Dashboard
-router.get("/admin/stats", getDashboardStatsHandler);
+router.get("/stats", getDashboardStatsHandler);
 
 // Events
-router.get("/admin/events", getAllEventsHandler);
-router.patch("/admin/events/:eventId/status", updateEventStatusHandler);
+router.get("/events", getAllEventsHandler);
+router.patch("/events/:eventId/status", updateEventStatusHandler);
 
 // Users
-router.get("/admin/users", getAllUsersHandler);
+router.get("/users", getAllUsersHandler);
 
 // Payments (full list + grouped views)
-router.get("/admin/payments", getAllPaymentsHandler);
-router.get("/admin/payments/by-event", getPaymentsByEventHandler);
-router.get("/admin/payments/by-organizer", getPaymentsByOrganizerHandler);
+router.get("/payments", getAllPaymentsHandler);
+router.get("/payments/by-event", getPaymentsByEventHandler);
+router.get("/payments/by-organizer", getPaymentsByOrganizerHandler);
 
 // Refunds
-router.get("/admin/refunds", getPendingRefundsHandler);
-router.patch("/admin/payments/:paymentId/refund", markRefundedHandler);
+router.get("/refunds", getPendingRefundsHandler);
+router.patch("/payments/:paymentId/refund", markRefundedHandler);
 
 // Payouts to organizers
-router.get("/admin/payouts", getPayoutHistoryHandler);
-router.get("/admin/payouts/history", getPayoutHistoryHandler);
-router.get("/admin/payouts/summary", getPayoutSummaryHandler);
-router.post("/admin/payouts/release", releasePayoutHandler);
+router.get("/payouts", getPayoutHistoryHandler);
+router.get("/payouts/history", getPayoutHistoryHandler);
+router.get("/payouts/summary", getPayoutSummaryHandler);
+router.post("/payouts/release", releasePayoutHandler);
 
 export default router;

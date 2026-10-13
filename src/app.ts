@@ -50,14 +50,14 @@ export function bootstrap() {
     });
 
     app.use("/api/auth", authRouter);
-    app.use("/api", eventRouter);
-    app.use("/api", categoryRouter);
+    app.use("/api/event", eventRouter);
+    app.use("/api/categories", categoryRouter);
     app.use("/api/payment", paymentRouter);
     app.use("/api", ticketRouter);
-    app.use("/api", organizerRouter);
+    app.use("/api/organizer", organizerRouter);
     app.use("/api", staffRouter);
-    app.use("/api", adminRouter);
-    app.use("/api", uploadRouter);
+    app.use("/api/admin", adminRouter);
+    app.use("/api/upload", uploadRouter);
 
     app.use(errorHandler);
 

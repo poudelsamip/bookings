@@ -10,9 +10,9 @@ import {
 
 const router = Router();
 
-router.get("/organizer/events", authenticate, requireOrganizer, orgEventController);
+router.get("/events", authenticate, requireOrganizer, orgEventController);
 router.get(
-    "/organizer/events/:slug",
+    "/events/:slug",
     authenticate,
     requireOrganizer,
     orgEventBySlugController,
