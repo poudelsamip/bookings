@@ -33,6 +33,13 @@ export const holdTicket = async (
             throw new AppError(404, "Event not found");
         }
 
+        // block purchases for events that have already passed
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (event.date < today) {
+            throw new AppError(400, "Cannot purchase tickets for a past event");
+        }
+
         const items = input.items;
 
         const orderItems: {
@@ -45,10 +52,10 @@ export const holdTicket = async (
 
         for (const item of items) {
             const updated = await tx.$executeRaw`
-                UPDATE "TicketType"
+                UPDATE "ticket_type"
                 SET held = held + ${item.quantity}
-                WHERE id = ${item.ticketTypeId}::uuid
-                  AND "eventId" = ${eventId}::uuid
+                WHERE id = ${item.ticketTypeId}
+                  AND "event_id" = ${eventId}
                   AND (total - sold - held) >= ${item.quantity}
             `;
 

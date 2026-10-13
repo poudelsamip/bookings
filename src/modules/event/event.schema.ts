@@ -52,6 +52,17 @@ export const createEventSchema = z.object({
             venue: venueSchema,
         })
         .superRefine((data, ctx) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const eventDate = new Date(`${data.date}T00:00:00`);
+            if (eventDate < today) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["date"],
+                    message: "Event date cannot be in the past",
+                });
+            }
+
             const { seatingType, ticketTypes } = data;
 
             if (seatingType === "GENERAL") {
@@ -109,57 +120,72 @@ export const updateEventSchema = z.object({
     params: z.object({
         id: z.uuid("Invalid event ID"),
     }),
-    body: z.object({
-        title: z
-            .string()
-            .trim()
-            .min(1, "Event title cannot be empty")
-            .max(100, "Event title must be at most 100 characters")
-            .optional(),
+    body: z
+        .object({
+            title: z
+                .string()
+                .trim()
+                .min(1, "Event title cannot be empty")
+                .max(100, "Event title must be at most 100 characters")
+                .optional(),
 
-        description: z
-            .string()
-            .trim()
-            .min(1, "Event description cannot be empty")
-            .max(1000, "Event description must be at most 1000 characters")
-            .optional(),
+            description: z
+                .string()
+                .trim()
+                .min(1, "Event description cannot be empty")
+                .max(1000, "Event description must be at most 1000 characters")
+                .optional(),
 
-        categoryId: z.uuid("Invalid category ID").optional(),
+            categoryId: z.uuid("Invalid category ID").optional(),
 
-        bannerUrl: z.url("Invalid banner URL").optional().nullable(),
+            bannerUrl: z.url("Invalid banner URL").optional().nullable(),
 
-        date: z.iso.date("Invalid event date").optional(),
-        startTime: z.iso.datetime().optional(),
-        endTime: z.iso.datetime().optional().nullable(),
+            date: z.iso.date("Invalid event date").optional(),
+            startTime: z.iso.datetime().optional(),
+            endTime: z.iso.datetime().optional().nullable(),
 
-        status: z
-            .enum(["DRAFT", "PUBLISHED", "CANCELLED", "COMPLETED"])
-            .optional(),
+            status: z
+                .enum(["DRAFT", "PUBLISHED", "CANCELLED", "COMPLETED"])
+                .optional(),
 
-        venue: z
-            .object({
-                name: z
-                    .string()
-                    .trim()
-                    .min(1, "Venue name is required")
-                    .max(150),
-                address: z
-                    .string()
-                    .trim()
-                    .min(1, "Venue address is required")
-                    .max(300),
-                district: z
-                    .string()
-                    .trim()
-                    .min(1, "District is required")
-                    .max(100),
-                googleMaps: z
-                    .url("Invalid Google Maps URL")
-                    .optional()
-                    .nullable(),
-            })
-            .optional(),
-    }),
+            venue: z
+                .object({
+                    name: z
+                        .string()
+                        .trim()
+                        .min(1, "Venue name is required")
+                        .max(150),
+                    address: z
+                        .string()
+                        .trim()
+                        .min(1, "Venue address is required")
+                        .max(300),
+                    district: z
+                        .string()
+                        .trim()
+                        .min(1, "District is required")
+                        .max(100),
+                    googleMaps: z
+                        .url("Invalid Google Maps URL")
+                        .optional()
+                        .nullable(),
+                })
+                .optional(),
+        })
+        .superRefine((data, ctx) => {
+            if (data.date) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const eventDate = new Date(`${data.date}T00:00:00`);
+                if (eventDate < today) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["date"],
+                        message: "Event date cannot be in the past",
+                    });
+                }
+            }
+        }),
 });
 
 export type UpdateEventInput = z.infer<typeof updateEventSchema>["body"];

@@ -83,6 +83,13 @@ export async function createEvent(userId: string, input: EventInput) {
         throw new AppError(404, "Event category not found");
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eventDate = new Date(`${input.date}T00:00:00`);
+    if (eventDate < today) {
+        throw new AppError(400, "Event date cannot be in the past");
+    }
+
     const ticketTypes = input.ticketTypes.map((t) => ({
         name: t.name || "GENERAL",
         price: t.price,
@@ -140,8 +147,12 @@ export async function listEvents(query: ListEventsQuery) {
     const { categoryId, date, district, search, page, limit } = query;
     const skip = (page - 1) * limit;
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const where = {
         status: EventStatus.PUBLISHED,
+        date: { gte: today },
         ...(categoryId && { categoryId }),
         ...(date && { date: new Date(date) }),
         ...(district && {
@@ -250,6 +261,15 @@ export async function updateEvent(
 
         if (!category) {
             throw new AppError(404, "Event category not found");
+        }
+    }
+
+    if (input.date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const eventDate = new Date(`${input.date}T00:00:00`);
+        if (eventDate < today) {
+            throw new AppError(400, "Event date cannot be in the past");
         }
     }
 
