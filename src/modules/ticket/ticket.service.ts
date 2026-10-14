@@ -147,7 +147,7 @@ export const issueTickets = async (
         });
     }
 
-    await addEmailJob("ticket-confirmation", { orderId });
+    // await addEmailJob("ticket-confirmation", { orderId });
 
     // sendOrderConfirmationEmail(orderId).catch((err) =>
     //     console.error("[issueTickets] Failed to send confirmation email:", err),

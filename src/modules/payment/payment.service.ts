@@ -7,6 +7,7 @@ import { issueTickets, releaseHeldTickets } from "../ticket/ticket.service.js";
 import { cancelOrderExpiryJob } from "../../queues/order-expiry.queue.js";
 import { redis } from "../../lib/redis.lib.js";
 import axios from "axios";
+import { addEmailJob } from "../../queues/email.queue.js";
 
 export const initiateEsewaPayment = async (userId: string, orderId: string) => {
     const order = await prisma.order.findUnique({
@@ -262,6 +263,8 @@ export const esewaSuccess = async (encodedData: string) => {
 
         return { success: true, userId: order.userId };
     });
+
+    await addEmailJob("ticket-confirmation", { orderId: payment.orderId });
 
     if (result.expired) {
         // TODO : send email about refund

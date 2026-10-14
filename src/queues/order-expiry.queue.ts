@@ -1,4 +1,4 @@
-import { Queue } from "bullmq";
+import { Queue, type JobsOptions } from "bullmq";
 import { redis } from "../lib/redis.lib.js";
 
 export interface OrderExpiryJobData {
@@ -14,17 +14,27 @@ export const orderExpiryQueue = new Queue<OrderExpiryJobData>(
         defaultJobOptions: {
             removeOnComplete: true,
             removeOnFail: false,
+            attempts: 3,
+            backoff: {
+                type: "exponential",
+                delay: 2000,
+            },
         },
     },
 );
 
-export const addOrderExpiryJob = async (orderId: string, delayMs: number) => {
+export const addOrderExpiryJob = async (
+    orderId: string,
+    delayMs: number,
+    opts?: JobsOptions,
+) => {
     return await orderExpiryQueue.add(
         "expire-order",
         { orderId },
         {
             delay: Math.max(0, delayMs),
             jobId: `order-expire-${orderId}`,
+            ...opts,
         },
     );
 };

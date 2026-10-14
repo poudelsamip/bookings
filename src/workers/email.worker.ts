@@ -27,6 +27,7 @@ export const emailWorker = new Worker<EmailJobData, void, EmailJobName>(
     },
     {
         connection: redis,
+        concurrency: 5,
     },
 );
 
